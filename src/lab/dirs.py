@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-import dirs_workspace
+from . import dirs_workspace
 
 from werkzeug.utils import secure_filename
 
