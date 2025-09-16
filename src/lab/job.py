@@ -5,7 +5,6 @@ class Job:
 
     def __init__(self, job_id):
         self.id = job_id
-        self.db = get_db_connection()
         self.should_stop = False
 
     def update_progress(self, progress: int):
