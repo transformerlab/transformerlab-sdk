@@ -3,8 +3,9 @@ class Job:
     Used to update status and info of long-running jobs.
     """
 
-    def __init__(self, job_id):
+    def __init__(self, experiment_name, job_id):
         self.id = job_id
+        self.experiment_name = experiment_name
         self.should_stop = False
 
     def update_progress(self, progress: int):
