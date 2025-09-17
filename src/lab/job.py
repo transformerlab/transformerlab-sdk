@@ -1,12 +1,32 @@
+import json
+
+import .dirs
+
 class Job:
     """
     Used to update status and info of long-running jobs.
     """
 
+
     def __init__(self, experiment_name, job_id):
         self.id = job_id
         self.experiment_name = experiment_name
         self.should_stop = False
+
+    def _get_json_data(self):
+        """
+        Return the JSON data that is stored for this job in the filesystem.
+        If the file doesn't exist then return an empty dict.
+        """
+        job_file = dirs.job_dir_by_experiment_and_id(self.experiment_name: str, self.id)
+
+        # Try opening this file location and parsing the json inside
+        # On any error return an empty dict
+        try:
+            with open(job_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
 
     def update_progress(self, progress: int):
         """
