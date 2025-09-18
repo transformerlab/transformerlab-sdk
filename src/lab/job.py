@@ -97,7 +97,7 @@ class Job(BaseLabResource):
         """
         if completion_status not in ("success", "failed"):
             raise ValueError("completion_status must be either 'success' or 'failed'")
-            
+
         # Fetch current job_data
         json_data = self._get_json_data()
 
@@ -118,14 +118,16 @@ class Job(BaseLabResource):
 
         # Determine if additional_output_path and plot_data_path are valid and set
         valid_output_path = (
-            additional_output_path if additional_output_path and additional_output_path.strip() != "" else None
+            additional_output_path
+            if additional_output_path and additional_output_path.strip() != ""
+            else None
         )
-        valid_plot_data_path = plot_data_path if plot_data_path and plot_data_path.strip() != "" else None
-
+        valid_plot_data_path = (
+            plot_data_path if plot_data_path and plot_data_path.strip() != "" else None
+        )
 
         if valid_output_path is not None:
             json_data["job_data"]["additional_output_path"] = valid_output_path
-            self.add_to_job_data(, )
 
         if valid_plot_data_path is not None:
             json_data["job_data"]["plot_data_path"] = valid_plot_data_path
