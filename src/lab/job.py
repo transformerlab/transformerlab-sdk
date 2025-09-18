@@ -67,7 +67,7 @@ class Job(BaseLabResource):
         json_data = self._get_json_data()
 
         # If there isn't a job_data property then make one
-        if job_data not in json_data:
+        if "job_data" not in json_data:
             json_data["job_data"] = {}
 
         # Set the key property to value and save the whole object
