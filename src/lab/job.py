@@ -133,4 +133,4 @@ class Job(BaseLabResource):
             json_data["job_data"]["plot_data_path"] = valid_plot_data_path
 
         # Save the entire updated json blob
-        self._set_json_data()
+        self._set_json_data(json_data)
