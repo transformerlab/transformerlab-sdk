@@ -20,7 +20,7 @@ class Experiment(BaseLabResource):
     def _get_jobs_dir(self):
         return os.path.join(self._get_dir(), "jobs")
 
-    def create_new_job():
+    def create_new_job(self):
         jobs_dir = self._get_jobs_dir()
 
         # Scan the jobs directory for subdirectories with numberic names
