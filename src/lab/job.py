@@ -41,6 +41,10 @@ class Job:
         with open(job_file, "w", encoding="utf-8") as f:
             json.dump(json_data, f, ensure_ascii=False)
 
+    def _get_json_data_field(self, key, default=""):
+        json_data = self._get_json_data()
+        return json_data.get(key, default)
+
     def _update_json_data_field(self, key: str, value):
         json_data = self._get_json_data()
         json_data[key] = value
@@ -66,29 +70,25 @@ class Job:
         """
         Get the status of this job.
         """
-        # TODO
-        return None
+        return self._get_json_data_field("status")
 
     def get_progress(self):
         """
         Get the progress of this job.
         """
-        # TODO
-        return None
+        return self._get_json_data_field("progress")
 
     def get_experiment_id(self):
         """
         Get the experiment_id of this job.
         """
-        # TODO
-        return None
+        return self.experiment_name
 
     def get_job_data(self):
         """
         Get the job_data of this job.
         """
-        # TODO
-        return {}
+        return self._get_json_data_field("job_data", {})
 
     def set_tensorboard_output_dir(self, tensorboard_dir: str):
         """
