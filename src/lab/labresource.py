@@ -53,3 +53,12 @@ class BaseLabResource(ABC):
         json_file = self._get_json_file
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(json_data, f, ensure_ascii=False)
+
+    def _get_json_data_field(self, key, default=""):
+        json_data = self._get_json_data()
+        return json_data.get(key, default)
+
+    def _update_json_data_field(self, key: str, value):
+        json_data = self._get_json_data()
+        json_data[key] = value
+        self._set_json_data(json_data)

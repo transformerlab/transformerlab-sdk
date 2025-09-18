@@ -16,15 +16,6 @@ class Job(BaseLabResource):
         """Abstract method on BaseLabResource"""
         return dirs.job_dir_by_experiment_and_id(self.experiment_name, self.id)
 
-    def _get_json_data_field(self, key, default=""):
-        json_data = self._get_json_data()
-        return json_data.get(key, default)
-
-    def _update_json_data_field(self, key: str, value):
-        json_data = self._get_json_data()
-        json_data[key] = value
-        self._set_json_data(json_data)
-
     def update_progress(self, progress: int):
         """
         Update the percent complete for this job.
