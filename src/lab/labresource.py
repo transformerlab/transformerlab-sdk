@@ -33,3 +33,19 @@ class BaseLabResource(ABC):
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
+
+    def _set_json_data(self, json_data):
+        """
+        Set the JSON data that is stored for this resource in the filesystem.
+        This will overwrite whatever is stored now.
+        If the file doesn't exist it will be created.
+
+        Throws:
+        TypeError if json_data is not of type dict
+        """
+        if not isinstance(json_data, dict):
+            raise TypeError("json_data must be a dict")
+
+        job_file = os.path.join(self._get_dir(), "index.json")
+        with open(job_file, "w", encoding="utf-8") as f:
+            json.dump(json_data, f, ensure_ascii=False)
