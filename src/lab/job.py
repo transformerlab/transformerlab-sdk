@@ -60,15 +60,19 @@ class Job(BaseLabResource):
         """
         Sets the directory that tensorboard output is stored.
         """
-        # TODO
-        pass
+        self.add_to_job_data("tensorboard_output_dir", tensorboard_dir)
 
     def add_to_job_data(self, key: str, value):
-        """
-        Adds a key-value pair to the job_data JSON object.
-        """
-        # TODO
-        pass
+        # Fetch current job_data
+        json_data = self._get_json_data()
+
+        # If there isn't a job_data property then make one
+        if job_data not in json_data:
+            json_data["job_data"] = {}
+
+        # Set the key property to value and save the whole object
+        json_data["job_data"][key] = value
+        self._set_json_data()
 
     def update_job_data(self, key: str, value):
         """
