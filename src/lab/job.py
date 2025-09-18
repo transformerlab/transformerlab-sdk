@@ -29,6 +29,12 @@ class Job:
             return {}
         
      def _set_json_data(self, json_data):
+        """
+        Save a job's JSON data to the right place in the filesystem.
+
+        Throws:
+        TypeError if json_data is not of type dict
+        """
         job_file = dirs.job_dir_by_experiment_and_id(self.experiment_name, self.id)
         if not isinstance(json_data, dict):
             raise TypeError("json_data must be a dict")
