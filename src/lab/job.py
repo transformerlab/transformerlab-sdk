@@ -80,7 +80,7 @@ class Job(BaseLabResource):
     def set_job_completion_status(
         self,
         completion_status: str,
-        completion_details: str,
+        completion_details: str = "",
         score: dict = None,
         additional_output_path: str = None,
         plot_data_path: str = None,
