@@ -1,8 +1,8 @@
-import json
+from . import dirs
+from .labresource import BaseLabResource
 
-import .dirs
 
-class Job:
+class Job(BaseLabResource):
     """
     Used to update status and info of long-running jobs.
     """
@@ -12,33 +12,9 @@ class Job:
         self.experiment_name = experiment_name
         self.should_stop = False
 
-    def _get_json_data(self):
-        """
-        Return the JSON data that is stored for this job in the filesystem.
-        If the file doesn't exist then return an empty dict.
-        """
-        job_file = dirs.job_dir_by_experiment_and_id(self.experiment_name, self.id)
-
-        # Try opening this file location and parsing the json inside
-        # On any error return an empty dict
-        try:
-            with open(job_file, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {}
-        
-     def _set_json_data(self, json_data):
-        """
-        Save a job's JSON data to the right place in the filesystem.
-
-        Throws:
-        TypeError if json_data is not of type dict
-        """
-        job_file = dirs.job_dir_by_experiment_and_id(self.experiment_name, self.id)
-        if not isinstance(json_data, dict):
-            raise TypeError("json_data must be a dict")
-        with open(job_file, "w", encoding="utf-8") as f:
-            json.dump(json_data, f, ensure_ascii=False)
+    def _get_dir(self):
+        """Abstract method on BaseLabResource"""
+        return dirs.job_dir_by_experiment_and_id(self.experiment_name, self.id)
 
     def _get_json_data_field(self, key, default=""):
         json_data = self._get_json_data()
