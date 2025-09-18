@@ -40,7 +40,7 @@ class BaseLabResource(ABC):
 
     def _set_json_data(self, json_data):
         """
-        Set the JSON data that is stored for this resource in the filesystem.
+        Sets the entire JSON data that is stored for this resource in the filesystem.
         This will overwrite whatever is stored now.
         If the file doesn't exist it will be created.
 
@@ -55,10 +55,12 @@ class BaseLabResource(ABC):
             json.dump(json_data, f, ensure_ascii=False)
 
     def _get_json_data_field(self, key, default=""):
+        """Gets the value of a single top-level field in a JSON object"""
         json_data = self._get_json_data()
         return json_data.get(key, default)
 
     def _update_json_data_field(self, key: str, value):
+        """Sets the value of a single top-level field in a JSON object"""
         json_data = self._get_json_data()
         json_data[key] = value
         self._set_json_data(json_data)
