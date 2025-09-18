@@ -18,7 +18,7 @@ class Job:
         Return the JSON data that is stored for this job in the filesystem.
         If the file doesn't exist then return an empty dict.
         """
-        job_file = dirs.job_dir_by_experiment_and_id(self.experiment_name: str, self.id)
+        job_file = dirs.job_dir_by_experiment_and_id(self.experiment_name, self.id)
 
         # Try opening this file location and parsing the json inside
         # On any error return an empty dict
@@ -27,6 +27,14 @@ class Job:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
+        
+     def _set_json_data(self, json_data):
+        job_file = dirs.job_dir_by_experiment_and_id(self.experiment_name, self.id)
+        if not isinstance(json_data, dict):
+            raise TypeError("json_data must be a dict")
+        with open(job_file, "w", encoding="utf-8") as f:
+            json.dump(json_data, f, ensure_ascii=False)
+
 
     def update_progress(self, progress: int):
         """
