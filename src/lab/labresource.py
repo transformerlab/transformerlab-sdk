@@ -19,17 +19,21 @@ class BaseLabResource(ABC):
         """Get file system directory where this resource is stored."""
         pass
 
+    def _get_json_file(self):
+        """Get json file containing metadata for this resource."""
+        return os.path.join(self._get_dir(), "index.json")
+
     def _get_json_data(self):
         """
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
         """
-        job_file = os.path.join(self._get_dir(), "index.json")
+        json_file = self._get_json_file
 
         # Try opening this file location and parsing the json inside
         # On any error return an empty dict
         try:
-            with open(job_file, "r", encoding="utf-8") as f:
+            with open(json_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
@@ -46,6 +50,6 @@ class BaseLabResource(ABC):
         if not isinstance(json_data, dict):
             raise TypeError("json_data must be a dict")
 
-        job_file = os.path.join(self._get_dir(), "index.json")
-        with open(job_file, "w", encoding="utf-8") as f:
+        json_file = self._get_json_file
+        with open(json_file, "w", encoding="utf-8") as f:
             json.dump(json_data, f, ensure_ascii=False)
