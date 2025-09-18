@@ -69,6 +69,7 @@ EXPERIMENTS_DIR: str = os.path.join(WORKSPACE_DIR, "experiments")
 os.makedirs(name=EXPERIMENTS_DIR, exist_ok=True)
 
 # GLOBAL_LOG_PATH
+# MTMIGRATE: This doesn't work in multi-tenant world
 GLOBAL_LOG_PATH = os.path.join(HOME_DIR, "transformerlab.log")
 
 # OTHER LOGS DIR:
@@ -81,6 +82,7 @@ os.makedirs(name=LOGS_DIR, exist_ok=True)
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+# TODO: Move this to Experiment
 def experiment_dir_by_name(experiment_name: str) -> str:
     return os.path.join(EXPERIMENTS_DIR, experiment_name)
 
@@ -151,6 +153,7 @@ GALLERIES_CACHE_DIR = os.path.join(WORKSPACE_DIR, "galleries")
 os.makedirs(name=GALLERIES_CACHE_DIR, exist_ok=True)
 
 # Evals output file:
+# TODO: These should probably be in the plugin subclasses
 
 
 async def eval_output_file(experiment_name: str, eval_name: str) -> str:
@@ -169,6 +172,7 @@ async def generation_output_file(experiment_name: str, generation_name: str) -> 
     return os.path.join(p, "output.txt")
 
 
+# TODO: Move this to Experiment
 def job_dir_by_experiment_and_id(experiment_name: str, job_id: str) -> str:
     """
     Get the job directory path for a given experiment and job ID.
@@ -186,6 +190,7 @@ def job_dir_by_experiment_and_id(experiment_name: str, job_id: str) -> str:
     return job_dir
 
 
+# TODO: Move this to Job
 def get_job_output_dir(experiment_name: str, job_id: str) -> str:
     """
     Get the job output directory, with backward compatibility.
