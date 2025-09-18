@@ -28,7 +28,7 @@ class BaseLabResource(ABC):
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
         """
-        json_file = self._get_json_file
+        json_file = self._get_json_file()
 
         # Try opening this file location and parsing the json inside
         # On any error return an empty dict
@@ -50,7 +50,7 @@ class BaseLabResource(ABC):
         if not isinstance(json_data, dict):
             raise TypeError("json_data must be a dict")
 
-        json_file = self._get_json_file
+        json_file = self._get_json_file()
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(json_data, f, ensure_ascii=False)
 
