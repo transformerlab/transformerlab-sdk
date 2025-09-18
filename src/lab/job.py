@@ -91,6 +91,44 @@ class Job(BaseLabResource):
         that the job is executing has completed.
         and if the job failed, the details of the failure.
         Score should be a json of the format {"metric_name": value, ...}
+
+        Throws:
+        ValueError if completion_status isn't one of "success" or "failed"
         """
-        # TODO
-        pass
+        if completion_status not in ("success", "failed"):
+            raise ValueError("completion_status must be either 'success' or 'failed'")
+            
+        # Fetch current job_data
+        json_data = self._get_json_data()
+
+        # If there isn't a job_data property then make one
+        if "job_data" not in json_data:
+            json_data["job_data"] = {}
+
+        # Add to job data completion_status and completion_details
+        json_data["job_data"]["completion_status"] = completion_status
+        json_data["job_data"]["completion_details"] = completion_details
+
+        # Update the job status field if there's a failure
+        if completion_status == "failed":
+            json_data["job_data"]["status"] = "FAILED"
+
+        if score is not None:
+            json_data["job_data"]["score"] = score
+
+        # Determine if additional_output_path and plot_data_path are valid and set
+        valid_output_path = (
+            additional_output_path if additional_output_path and additional_output_path.strip() != "" else None
+        )
+        valid_plot_data_path = plot_data_path if plot_data_path and plot_data_path.strip() != "" else None
+
+
+        if valid_output_path is not None:
+            json_data["job_data"]["additional_output_path"] = valid_output_path
+            self.add_to_job_data(, )
+
+        if valid_plot_data_path is not None:
+            json_data["job_data"]["plot_data_path"] = valid_plot_data_path
+
+        # Save the entire updated json blob
+        self._set_json_data()
