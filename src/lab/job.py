@@ -41,7 +41,7 @@ class Job:
         with open(job_file, "w", encoding="utf-8") as f:
             json.dump(json_data, f, ensure_ascii=False)
 
-    def _update_json_data_field(self, key, value):
+    def _update_json_data_field(self, key: str, value):
         json_data = self._get_json_data()
         json_data[key] = value
         self._set_json_data(json_data)
@@ -60,8 +60,7 @@ class Job:
 
         status: str representing the status of the job
         """
-        # TODO
-        pass
+        self._update_json_data_field("status", status)
 
     def get_status(self):
         """
