@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+import os
+import json
 
 
 class BaseLabResource(ABC):
@@ -16,3 +18,18 @@ class BaseLabResource(ABC):
     def _get_dir(self):
         """Get file system directory where this resource is stored."""
         pass
+
+    def _get_json_data(self):
+        """
+        Return the JSON data that is stored for this resource in the filesystem.
+        If the file doesn't exist then return an empty dict.
+        """
+        job_file = os.path.join(self._get_dir(), "index.json")
+
+        # Try opening this file location and parsing the json inside
+        # On any error return an empty dict
+        try:
+            with open(job_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
