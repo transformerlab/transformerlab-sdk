@@ -21,6 +21,9 @@ class Experiment(BaseLabResource):
         return os.path.join(self._get_dir(), "jobs")
 
     def create_new_job(self):
+        """
+        Creates a new job with a blank template and returns a Job object.
+        """
         jobs_dir = self._get_jobs_dir()
 
         # Scan the jobs directory for subdirectories with numberic names
@@ -38,3 +41,20 @@ class Experiment(BaseLabResource):
         new_job_id = largest_numeric_subdir + 1
         new_job = Job(self.id, new_job_id)
         return new_job
+
+    def get_jobs(self):
+        """
+        Get a list of IDs for jobs stored in this experiment.
+        """
+        jobs_dir = self._get_jobs_dir()
+
+        # Iterate through the jobs directory and add validate jobs to result
+        # A subdirectory if a valid job if it contains a file called index.json
+        results = []
+        if os.path.isdir(jobs_dir):
+            for entry in os.listdir(jobs_dir):
+                full_path = os.path.join(jobs_dir, entry)
+                if os.path.isdir(full_path):
+                    if os.path.isfile(os.path.join(full_path, "index.json")):
+                        results.append(entry)
+        return results
