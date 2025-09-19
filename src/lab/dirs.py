@@ -37,22 +37,6 @@ os.environ["LOGDIR"] = os.getenv(
 )
 os.environ["TLAB_LOG"] = "transformerlab.log"
 
-# TFL_SOURCE_CODE_DIR
-# TODO: FSMIGRATE This __file__ reference is a problem
-api_py_dir = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
-if api_py_dir != os.path.join(HOME_DIR, "src"):
-    print(
-        f"We are working from {api_py_dir} which is not {os.path.join(HOME_DIR, 'src')}"
-    )
-    print(
-        "That means you are probably developing in a different location so we will set source dir to the current directory"
-    )
-    TFL_SOURCE_CODE_DIR = api_py_dir
-else:
-    print(f"Source code directory is set to: {os.path.join(HOME_DIR, 'src')}")
-    TFL_SOURCE_CODE_DIR = os.path.join(HOME_DIR, "src")
 
 # TFL_STATIC_FILES_DIR is TFL_HOME_DIR/webapp
 STATIC_FILES_DIR = os.path.join(HOME_DIR, "webapp")
@@ -76,12 +60,6 @@ GLOBAL_LOG_PATH = os.path.join(HOME_DIR, "transformerlab.log")
 LOGS_DIR = os.path.join(HOME_DIR, "logs")
 os.makedirs(name=LOGS_DIR, exist_ok=True)
 
-# ROOT_DIR (deprecate later)
-# TODO: FSMIGRATE
-# This is still used in a lot of places and will be a problem
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-
 # TODO: Move this to Experiment
 def experiment_dir_by_name(experiment_name: str) -> str:
     return os.path.join(EXPERIMENTS_DIR, experiment_name)
@@ -99,11 +77,6 @@ def experiment_dir_by_name(experiment_name: str) -> str:
 #     return os.path.join(EXPERIMENTS_DIR, experiment_name)
 
 
-# PLUGIN_PRELOADED_GALLERY
-PLUGIN_PRELOADED_GALLERY = os.path.join(
-    TFL_SOURCE_CODE_DIR, "transformerlab", "plugins"
-)
-
 # PLUGIN_DIR
 PLUGIN_DIR = os.path.join(WORKSPACE_DIR, "plugins")
 
@@ -112,9 +85,6 @@ def plugin_dir_by_name(plugin_name: str) -> str:
     plugin_name = secure_filename(plugin_name)
     return os.path.join(PLUGIN_DIR, plugin_name)
 
-
-PLUGIN_SDK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugin_sdk")
-PLUGIN_HARNESS = os.path.join(PLUGIN_SDK_DIR, "plugin_harness.py")
 
 # MODELS_DIR
 MODELS_DIR = os.path.join(WORKSPACE_DIR, "models")
@@ -145,10 +115,6 @@ os.makedirs(name=TOOLS_DIR, exist_ok=True)
 BATCHED_PROMPTS_DIR = os.path.join(WORKSPACE_DIR, "batched_prompts")
 os.makedirs(name=BATCHED_PROMPTS_DIR, exist_ok=True)
 
-# Galleries cache directory
-GALLERIES_LOCAL_FALLBACK_DIR = os.path.join(
-    TFL_SOURCE_CODE_DIR, "transformerlab/galleries/"
-)
 GALLERIES_CACHE_DIR = os.path.join(WORKSPACE_DIR, "galleries")
 os.makedirs(name=GALLERIES_CACHE_DIR, exist_ok=True)
 
