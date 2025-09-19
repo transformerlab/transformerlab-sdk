@@ -39,9 +39,7 @@ os.environ["TLAB_LOG"] = "transformerlab.log"
 
 # TFL_SOURCE_CODE_DIR
 # TODO: FSMIGRATE This __file__ reference is a problem
-api_py_dir = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+api_py_dir = os.environ.get("TFL_SOURCE_CODE_DIR", os.path.join(HOME_DIR, "src"))
 if api_py_dir != os.path.join(HOME_DIR, "src"):
     print(
         f"We are working from {api_py_dir} which is not {os.path.join(HOME_DIR, 'src')}"
@@ -78,7 +76,7 @@ os.makedirs(name=LOGS_DIR, exist_ok=True)
 # ROOT_DIR (deprecate later)
 # TODO: FSMIGRATE
 # This is still used in a lot of places and will be a problem
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT_DIR = TFL_SOURCE_CODE_DIR
 
 
 def experiment_dir_by_name(experiment_name: str) -> str:
