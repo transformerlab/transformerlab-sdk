@@ -18,7 +18,7 @@ else:
     print(f"Using default home directory: {HOME_DIR}")
 
 if MULTITENANT:
-    WORKSPACE_DIR = os.getenv("REMOTE_WORKSPACE_DIR")
+    WORKSPACE_DIR = os.getenv("REMOTE_WORKSPACE_DIR", f"{HOME_DIR}/orgs/org_1/workspace")
     if not os.path.exists(WORKSPACE_DIR):
         print(f"Error: Multi-tenant workspace directory {WORKSPACE_DIR} does not exist")
         exit(1)
