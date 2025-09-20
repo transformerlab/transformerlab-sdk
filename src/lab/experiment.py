@@ -3,6 +3,7 @@ import os
 from . import dirs
 from .labresource import BaseLabResource
 from .job import Job
+import json
 
 
 class Experiment(BaseLabResource):
@@ -42,19 +43,28 @@ class Experiment(BaseLabResource):
         new_job = Job(self.id, new_job_id)
         return new_job
 
-    def get_jobs(self):
+    def get_jobs(self, type: str = "", status: str = ""):
         """
         Get a list of IDs for jobs stored in this experiment.
+        type: If not blank, filter by jobs with this type.
+        status: If not blank, filter by jobs with this status.
         """
         jobs_dir = self._get_jobs_dir()
 
         # Iterate through the jobs directory and add validate jobs to result
         # A subdirectory if a valid job if it contains a file called index.json
+        # and that json file parses.
         results = []
         if os.path.isdir(jobs_dir):
             for entry in os.listdir(jobs_dir):
                 full_path = os.path.join(jobs_dir, entry)
                 if os.path.isdir(full_path):
-                    if os.path.isfile(os.path.join(full_path, "index.json")):
-                        results.append(entry)
+                    job_index_file = os.path.join(full_path, "index.json")
+                    if os.path.isfile(job_index_file):
+                        try:
+                            with open(job_index_file, "r", encoding="utf-8") as f:
+                                json.load(f)
+                            results.append(entry)
+                        except Exception:
+                            continue
         return results
