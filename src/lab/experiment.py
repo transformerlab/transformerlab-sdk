@@ -3,7 +3,6 @@ import os
 from . import dirs
 from .labresource import BaseLabResource
 from .job import Job
-import json
 
 
 class Experiment(BaseLabResource):
