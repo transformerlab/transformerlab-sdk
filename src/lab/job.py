@@ -92,6 +92,9 @@ class Job(BaseLabResource):
         """
         return self._get_json_data_field("job_data", {})
 
+    def set_job_data(self, job_data):
+        self._update_json_data_field("job_data", job_data)
+
     def set_tensorboard_output_dir(self, tensorboard_dir: str):
         """
         Sets the directory that tensorboard output is stored.
