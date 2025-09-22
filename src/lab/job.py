@@ -18,7 +18,7 @@ class Job(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         job_id_safe = secure_filename(str(self.id))
-        experiment_dir = os.path.join(dirs.EXPERIMENTS_DIR, self.experiment_id)
+        experiment_dir = dirs.experiment_dir_by_name(self.experiment_id)
         job_dir = os.path.join(experiment_dir, "jobs", job_id_safe)
         os.makedirs(job_dir, exist_ok=True)
         return job_dir
