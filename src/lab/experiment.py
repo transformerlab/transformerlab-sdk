@@ -25,7 +25,7 @@ class Experiment(BaseLabResource):
     def _get_jobs_dir(self):
         return os.path.join(self.get_dir(), "jobs")
 
-    def create_new_job(self):
+    def create_job(self):
         """
         Creates a new job with a blank template and returns a Job object.
         """
@@ -45,7 +45,7 @@ class Experiment(BaseLabResource):
                             largest_numeric_subdir = job_id
 
         new_job_id = largest_numeric_subdir + 1
-        new_job = Job(self.id, new_job_id)
+        new_job = Job.create(self.id, new_job_id)
         return new_job
 
     def get_jobs(self, type: str = "", status: str = ""):
