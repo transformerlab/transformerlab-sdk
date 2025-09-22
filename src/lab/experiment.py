@@ -1,4 +1,5 @@
 import os
+from werkzeug.utils import secure_filename
 
 from .dirs import EXPERIMENTS_DIR
 from .labresource import BaseLabResource
@@ -15,7 +16,8 @@ class Experiment(BaseLabResource):
 
     def _get_dir(self):
         """Abstract method on BaseLabResource"""
-        return os.path.join(EXPERIMENTS_DIR, self.id)
+        experiment_id_safe = secure_filename(str(self.id))
+        return os.path.join(EXPERIMENTS_DIR, experiment_id_safe)
 
     def _get_jobs_dir(self):
         return os.path.join(self._get_dir(), "jobs")
