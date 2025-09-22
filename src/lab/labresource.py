@@ -15,13 +15,13 @@ class BaseLabResource(ABC):
         self.id = id
 
     @abstractmethod
-    def _get_dir(self):
+    def get_dir(self):
         """Get file system directory where this resource is stored."""
         pass
 
     def _get_json_file(self):
         """Get json file containing metadata for this resource."""
-        return os.path.join(self._get_dir(), "index.json")
+        return os.path.join(self.get_dir(), "index.json")
 
     def _get_json_data(self):
         """

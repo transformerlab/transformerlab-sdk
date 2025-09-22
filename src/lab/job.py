@@ -15,7 +15,7 @@ class Job(BaseLabResource):
         self.experiment_id = experiment_id
         self.should_stop = False
 
-    def _get_dir(self):
+    def get_dir(self):
         """Abstract method on BaseLabResource"""
         job_id_safe = secure_filename(str(self.id))
         experiment_dir = os.path.join(dirs.EXPERIMENTS_DIR, self.experiment_id)
@@ -155,7 +155,7 @@ class Job(BaseLabResource):
             Path to the job output directory
         """
         # Try new structure first
-        new_job_dir = self._get_dir()
+        new_job_dir = self.get_dir()
         if os.path.exists(new_job_dir):
             return new_job_dir
 

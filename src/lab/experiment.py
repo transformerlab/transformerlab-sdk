@@ -14,13 +14,13 @@ class Experiment(BaseLabResource):
     def __init__(self, experiment_id):
         self.id = experiment_id
 
-    def _get_dir(self):
+    def get_dir(self):
         """Abstract method on BaseLabResource"""
         experiment_id_safe = secure_filename(str(self.id))
         return os.path.join(EXPERIMENTS_DIR, experiment_id_safe)
 
     def _get_jobs_dir(self):
-        return os.path.join(self._get_dir(), "jobs")
+        return os.path.join(self.get_dir(), "jobs")
 
     def create_new_job(self):
         """
