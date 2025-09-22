@@ -45,15 +45,18 @@ class BaseLabResource(ABC):
         To alter the default metadata update the _default_json method.
         """
 
-        # Make sure directory for this resource exists
+        # Create directory for this resource
         dir = self.get_dir()
         os.makedirs(dir, exist_ok=True)
 
-        # If json file doesn't exist then create a default
+        # Create a default json file. Throw an error if one already exists.
         json_file = self._get_json_file()
-        if not os.path.exists(json_file):
-            with open(json_file, "w", encoding="utf-8") as f:
-                json.dump(self._default_json(), f)
+        if os.path.exists(json_file):
+            raise FileExistsError(
+                f"{type(self).__name__} with id '{self.id}' already exists"
+            )
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(self._default_json(), f)
 
     def _default_json(self):
         """Override in subclasses to support the initialize method."""
