@@ -57,14 +57,17 @@ class Experiment(BaseLabResource):
         results = []
         if os.path.isdir(jobs_dir):
             for entry in os.listdir(jobs_dir):
-                full_path = os.path.join(jobs_dir, entry)
-                if os.path.isdir(full_path):
-                    job_index_file = os.path.join(full_path, "index.json")
-                    if os.path.isfile(job_index_file):
-                        try:
-                            with open(job_index_file, "r", encoding="utf-8") as f:
-                                json.load(f)
-                            results.append(entry)
-                        except Exception:
-                            continue
+                job = Job(self.id, entry)
+                job_json = job._get_json_data()
+
+                # Filter based on the passed parameters
+                if type and (job_json.get("type", "") != type):
+                    continue
+                if status and (job_json.get("status", "") != status):
+                    continue
+
+                # If it passed filters then add as long as it has job_data
+                if "job_data" in job_json:
+                    results.append(job_json)
+
         return results
