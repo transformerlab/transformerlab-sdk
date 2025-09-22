@@ -96,9 +96,9 @@ class Job(BaseLabResource):
         """
         Sets the directory that tensorboard output is stored.
         """
-        self.update_job_data("tensorboard_output_dir", tensorboard_dir)
+        self.update_job_data_field("tensorboard_output_dir", tensorboard_dir)
 
-    def update_job_data(self, key: str, value):
+    def update_job_data_field(self, key: str, value):
         """
         Updates a key-value pair in the job_data JSON object.
         """
