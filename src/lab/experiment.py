@@ -19,6 +19,9 @@ class Experiment(BaseLabResource):
         experiment_id_safe = secure_filename(str(self.id))
         return os.path.join(EXPERIMENTS_DIR, experiment_id_safe)
 
+    def _default_json(self):
+        return {"name": self.id, "config": {}}
+
     def _get_jobs_dir(self):
         return os.path.join(self.get_dir(), "jobs")
 

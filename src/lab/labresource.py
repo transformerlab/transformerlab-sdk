@@ -19,6 +19,46 @@ class BaseLabResource(ABC):
         """Get file system directory where this resource is stored."""
         pass
 
+    @classmethod
+    def create(cls, id):
+        """
+        Default method to create a new entity and initialize it with defualt metadata.
+        """
+        newobj = cls(id)
+        newobj.initialize()
+        return newobj
+
+    @classmethod
+    def get(cls, id):
+        """
+        Default method to get entity if it exists in the file system.
+        If the entity's metadata file does not exist then throws FileNotFoundError.
+        """
+        newobj = cls(id)
+        if not os.path.exists(newobj._get_json_file()):
+            raise FileNotFoundError(f"{cls.__name__} with id '{id}' not found")
+        return newobj
+
+    def _initialize(self):
+        """
+        Default function to initialize the file system and json object.
+        To alter the default metadata update the _default_json method.
+        """
+
+        # Make sure directory for this resource exists
+        dir = self.get_dir()
+        os.makedirs(dir, exist_ok=True)
+
+        # If json file doesn't exist then create a default
+        json_file = self._get_json_file()
+        if not os.path.exists(json_file):
+            with open(json_file, "w", encoding="utf-8") as f:
+                json.dump(self._default_json(), f)
+
+    def _default_json(self):
+        """Override in subclasses to support the initialize method."""
+        return {"id": self.id}
+
     def _get_json_file(self):
         """Get json file containing metadata for this resource."""
         return os.path.join(self.get_dir(), "index.json")

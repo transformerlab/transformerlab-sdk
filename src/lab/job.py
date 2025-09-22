@@ -23,6 +23,15 @@ class Job(BaseLabResource):
         os.makedirs(job_dir, exist_ok=True)
         return job_dir
 
+    def _default_json(self):
+        return {
+            "id": self.id,
+            "experiment_id": self.experiment_id,
+            "job_data": {},
+            "status": "NOT_STARTED",
+            "progress": 0,
+        }
+
     def update_progress(self, progress: int):
         """
         Update the percent complete for this job.
