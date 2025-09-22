@@ -23,6 +23,26 @@ class Job(BaseLabResource):
         os.makedirs(job_dir, exist_ok=True)
         return job_dir
 
+    @classmethod
+    def create(cls, experiment_id, job_id):
+        """
+        Default method to create a new entity and initialize it with defualt metadata.
+        """
+        newobj = cls(experiment_id, job_id)
+        newobj.initialize()
+        return newobj
+
+    @classmethod
+    def get(cls, experiment_id, job_id):
+        """
+        Default method to get entity if it exists in the file system.
+        If the entity's metadata file does not exist then throws FileNotFoundError.
+        """
+        newobj = cls(experiment_id, job_id)
+        if not os.path.exists(newobj._get_json_file()):
+            raise FileNotFoundError(f"{cls.__name__} with id '{job_id}' not found")
+        return newobj
+
     def _default_json(self):
         return {
             "id": self.id,
