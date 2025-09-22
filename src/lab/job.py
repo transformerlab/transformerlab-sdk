@@ -1,3 +1,6 @@
+import os
+from werkzeug.utils import secure_filename
+
 from . import dirs
 from .labresource import BaseLabResource
 
@@ -7,14 +10,18 @@ class Job(BaseLabResource):
     Used to update status and info of long-running jobs.
     """
 
-    def __init__(self, experiment_name, job_id):
+    def __init__(self, experiment_id, job_id):
         self.id = job_id
-        self.experiment_name = experiment_name
+        self.experiment_id = experiment_id
         self.should_stop = False
 
     def _get_dir(self):
         """Abstract method on BaseLabResource"""
-        return dirs.job_dir_by_experiment_and_id(self.experiment_name, self.id)
+        job_id_safe = secure_filename(str(self.id))
+        experiment_dir = os.path.join(dirs.EXPERIMENTS_DIR, self.experiment_id)
+        job_dir = os.path.join(experiment_dir, "jobs", job_id_safe)
+        os.makedirs(job_dir, exist_ok=True)
+        return job_dir
 
     def update_progress(self, progress: int):
         """
@@ -48,7 +55,7 @@ class Job(BaseLabResource):
         """
         Get the experiment_id of this job.
         """
-        return self.experiment_name
+        return self.experiment_id
 
     def get_job_data(self):
         """
