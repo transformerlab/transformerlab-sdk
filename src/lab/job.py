@@ -141,3 +141,29 @@ class Job(BaseLabResource):
 
         # Save the entire updated json blob
         self._set_json_data(json_data)
+
+        # TODO: Move this to Experiment
+
+    def get_job_output_dir(self, experiment_name: str, job_id: str) -> str:
+        """
+        Get the job output directory, with backward compatibility.
+        First tries new structure, then falls back to old structure if needed.
+        Args:
+            experiment_name: Name of the experiment
+            job_id: Job ID
+        Returns:
+            Path to the job output directory
+        """
+        # Try new structure first
+        new_job_dir = self._get_dir()
+        if os.path.exists(new_job_dir):
+            return new_job_dir
+
+        # Fall back to old structure for backward compatibility
+        job_id_safe = secure_filename(str(job_id))
+        old_job_dir = os.path.join(dirs.WORKSPACE_DIR, "jobs", job_id_safe)
+        if os.path.exists(old_job_dir):
+            return old_job_dir
+
+        # If neither exists, return new structure (will be created when needed)
+        return new_job_dir
