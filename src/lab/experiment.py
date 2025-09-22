@@ -1,6 +1,6 @@
 import os
 
-from . import dirs
+from .dirs import EXPERIMENTS_DIR
 from .labresource import BaseLabResource
 from .job import Job
 
@@ -15,7 +15,7 @@ class Experiment(BaseLabResource):
 
     def _get_dir(self):
         """Abstract method on BaseLabResource"""
-        return dirs.experiment_dir_by_name(self.id)
+        return os.path.join(EXPERIMENTS_DIR, self.id)
 
     def _get_jobs_dir(self):
         return os.path.join(self._get_dir(), "jobs")
@@ -26,6 +26,7 @@ class Experiment(BaseLabResource):
         """
         jobs_dir = self._get_jobs_dir()
 
+        # Choose an ID for the new job
         # Scan the jobs directory for subdirectories with numberic names
         # Find the largest number and increment to get the new job ID
         largest_numeric_subdir = 0
