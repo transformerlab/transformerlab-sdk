@@ -60,21 +60,10 @@ GLOBAL_LOG_PATH = os.path.join(HOME_DIR, "transformerlab.log")
 LOGS_DIR = os.path.join(HOME_DIR, "logs")
 os.makedirs(name=LOGS_DIR, exist_ok=True)
 
+
 # TODO: Move this to Experiment
 def experiment_dir_by_name(experiment_name: str) -> str:
     return os.path.join(EXPERIMENTS_DIR, experiment_name)
-
-
-# TODO: FSMIGRATE
-# async def experiment_dir_by_id(experiment_id: int) -> str:
-#     if experiment_id is not None:
-#         experiment = await experiment_get(experiment_id)
-#     else:
-#         print("Error: experiment_id is None")
-#         return os.path.join(EXPERIMENTS_DIR, "error")
-#
-#     experiment_name = experiment["name"]
-#     return os.path.join(EXPERIMENTS_DIR, experiment_name)
 
 
 # PLUGIN_DIR
