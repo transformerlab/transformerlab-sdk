@@ -25,7 +25,7 @@ class BaseLabResource(ABC):
         Default method to create a new entity and initialize it with defualt metadata.
         """
         newobj = cls(id)
-        newobj.initialize()
+        newobj._initialize()
         return newobj
 
     @classmethod

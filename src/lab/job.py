@@ -29,7 +29,7 @@ class Job(BaseLabResource):
         Default method to create a new entity and initialize it with defualt metadata.
         """
         newobj = cls(experiment_id, job_id)
-        newobj.initialize()
+        newobj._initialize()
         return newobj
 
     @classmethod
