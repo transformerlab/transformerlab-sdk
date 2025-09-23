@@ -36,6 +36,10 @@ os.environ["TLAB_LOG"] = "transformerlab.log"
 EXPERIMENTS_DIR: str = os.path.join(WORKSPACE_DIR, "experiments")
 os.makedirs(name=EXPERIMENTS_DIR, exist_ok=True)
 
+# JOBS DIR
+JOBS_DIR = os.path.join(WORKSPACE_DIR, "jobs")
+os.makedirs(name=JOBS_DIR, exist_ok=True)
+
 # GLOBAL_LOG_PATH
 # MTMIGRATE: This doesn't work in multi-tenant world
 GLOBAL_LOG_PATH = os.path.join(HOME_DIR, "transformerlab.log")
