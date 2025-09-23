@@ -10,9 +10,8 @@ class Job(BaseLabResource):
     Used to update status and info of long-running jobs.
     """
 
-    def __init__(self, experiment_id, job_id):
+    def __init__(self, job_id):
         self.id = job_id
-        self.experiment_id = experiment_id
         self.should_stop = False
 
     def get_dir(self):
@@ -22,30 +21,10 @@ class Job(BaseLabResource):
         os.makedirs(job_dir, exist_ok=True)
         return job_dir
 
-    @classmethod
-    def create(cls, experiment_id, job_id):
-        """
-        Default method to create a new entity and initialize it with defualt metadata.
-        """
-        newobj = cls(experiment_id, job_id)
-        newobj._initialize()
-        return newobj
-
-    @classmethod
-    def get(cls, experiment_id, job_id):
-        """
-        Default method to get entity if it exists in the file system.
-        If the entity's metadata file does not exist then throws FileNotFoundError.
-        """
-        newobj = cls(experiment_id, job_id)
-        if not os.path.exists(newobj._get_json_file()):
-            raise FileNotFoundError(f"{cls.__name__} with id '{job_id}' not found")
-        return newobj
-
     def _default_json(self):
         return {
             "id": self.id,
-            "experiment_id": self.experiment_id,
+            "experiment_id": "",
             "job_data": {},
             "status": "NOT_STARTED",
             "type": "TRAIN",
@@ -79,12 +58,6 @@ class Job(BaseLabResource):
         Get the progress of this job.
         """
         return self._get_json_data_field("progress")
-
-    def get_experiment_id(self):
-        """
-        Get the experiment_id of this job.
-        """
-        return self.experiment_id
 
     def get_job_data(self):
         """
@@ -173,29 +146,3 @@ class Job(BaseLabResource):
 
         # Save the entire updated json blob
         self._set_json_data(json_data)
-
-        # TODO: Move this to Experiment
-
-    def get_job_output_dir(self, experiment_name: str, job_id: str) -> str:
-        """
-        Get the job output directory, with backward compatibility.
-        First tries new structure, then falls back to old structure if needed.
-        Args:
-            experiment_name: Name of the experiment
-            job_id: Job ID
-        Returns:
-            Path to the job output directory
-        """
-        # Try new structure first
-        new_job_dir = self.get_dir()
-        if os.path.exists(new_job_dir):
-            return new_job_dir
-
-        # Fall back to old structure for backward compatibility
-        job_id_safe = secure_filename(str(job_id))
-        old_job_dir = os.path.join(dirs.WORKSPACE_DIR, "jobs", job_id_safe)
-        if os.path.exists(old_job_dir):
-            return old_job_dir
-
-        # If neither exists, return new structure (will be created when needed)
-        return new_job_dir

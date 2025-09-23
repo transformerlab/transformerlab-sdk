@@ -43,7 +43,7 @@ class Experiment(BaseLabResource):
                         largest_numeric_subdir = job_id
 
         new_job_id = largest_numeric_subdir + 1
-        new_job = Job.create(self.id, new_job_id)
+        new_job = Job.create(new_job_id)
         return new_job
 
     def get_jobs(self, type: str = "", status: str = ""):
