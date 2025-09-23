@@ -31,6 +31,10 @@ class Job(BaseLabResource):
             "progress": 0,
         }
 
+    def set_experiment(self, experiment_id: str):
+        self._update_json_data_field("experiment_id", experiment_id)
+        self.update_job_data_field("experiment_name", experiment_id)
+
     def update_progress(self, progress: int):
         """
         Update the percent complete for this job.
@@ -87,7 +91,7 @@ class Job(BaseLabResource):
 
         # Set the key property to value and save the whole object
         json_data["job_data"][key] = value
-        self._set_json_data()
+        self._set_json_data(json_data)
 
     def set_job_completion_status(
         self,
