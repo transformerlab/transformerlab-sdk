@@ -32,11 +32,19 @@ class BaseLabResource(ABC):
     def get(cls, id):
         """
         Default method to get entity if it exists in the file system.
-        If the entity's metadata file does not exist then throws FileNotFoundError.
+        If the entity's directory doesn't exist then throw an error.
+        If the entity's metadata file does not exist then create a default.
         """
         newobj = cls(id)
-        if not os.path.exists(newobj._get_json_file()):
-            raise FileNotFoundError(f"{cls.__name__} with id '{id}' not found")
+        resource_dir = newobj.get_dir()
+        if not os.path.isdir(resource_dir):
+            raise FileNotFoundError(
+                f"Directory for {cls.__name__} with id '{id}' not found"
+            )
+        json_file = newobj._get_json_file()
+        if not os.path.exists(json_file):
+            with open(json_file, "w", encoding="utf-8") as f:
+                json.dump(newobj._default_json(), f)
         return newobj
 
     ###
