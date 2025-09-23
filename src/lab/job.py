@@ -49,6 +49,7 @@ class Job(BaseLabResource):
             "experiment_id": self.experiment_id,
             "job_data": {},
             "status": "NOT_STARTED",
+            "type": "TRAIN",
             "progress": 0,
         }
 
