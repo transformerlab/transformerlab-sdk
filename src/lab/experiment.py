@@ -22,9 +22,6 @@ class Experiment(BaseLabResource):
     def _default_json(self):
         return {"name": self.id, "config": {}}
 
-    def _get_jobs_dir(self):
-        return os.path.join(self.get_dir(), "jobs")
-
     def create_job(self):
         """
         Creates a new job with a blank template and returns a Job object.
