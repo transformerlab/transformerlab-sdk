@@ -39,6 +39,11 @@ class BaseLabResource(ABC):
             raise FileNotFoundError(f"{cls.__name__} with id '{id}' not found")
         return newobj
 
+    ###
+    # INTERNAL METHODS
+    # There are used by all subclasses to initialize, get and set JSON data
+    ###
+
     def _initialize(self):
         """
         Default function to initialize the file system and json object.
