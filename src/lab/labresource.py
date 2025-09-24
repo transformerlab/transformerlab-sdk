@@ -98,12 +98,12 @@ class BaseLabResource(ABC):
             pass
         return self._get_json_file()
 
-    def _get_json_data(self, prefer_latest: bool = True):
+    def _get_json_data(self):
         """
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
         """
-        json_file = self._get_latest_snapshot_file() if prefer_latest else self._get_json_file()
+        json_file = self._get_latest_snapshot_file()
 
         # Try opening this file location and parsing the json inside
         # On any error return an empty dict
@@ -144,6 +144,6 @@ class BaseLabResource(ABC):
 
     def _update_json_data_field(self, key: str, value):
         """Sets the value of a single top-level field in a JSON object"""
-        json_data = self._get_json_data(prefer_latest=True)
+        json_data = self._get_json_data()
         json_data[key] = value
         self._set_json_data(json_data)
