@@ -40,7 +40,10 @@ class Lab:
         # Ensure experiment_name present for downstream consumers
         if isinstance(config, dict) and "experiment_name" not in config and self._experiment is not None:
             config = {**config, "experiment_name": self._experiment.id}
-        self._job.set_job_data(config)  # type: ignore[union-attr]
+        # keep the existing config with fields that are not in the new config
+        config_old = self._job.get_job_data()
+        config_new = {**config_old, **config}
+        self._job.set_job_data(config_new)  # type: ignore[union-attr]
 
     # ------------- convenience logging -------------
     def log(self, message: str) -> None:

@@ -21,10 +21,18 @@ class Job(BaseLabResource):
         os.makedirs(job_dir, exist_ok=True)
         return job_dir
 
-    def _log_path(self):
+    def get_log_path(self):
         """
-        Returns a path to the standard place Lab looks for job log files.
+        Returns the path where this job should write logs.
         """
+        try:
+            job_data = self.get_job_data()
+            if isinstance(job_data, dict):
+                override_path = job_data.get("_tlab_logging_file", "")
+                if isinstance(override_path, str) and override_path.strip() != "":
+                    return override_path
+        except Exception:
+            pass
         return os.path.join(self.get_dir(), f"output_{self.id}.txt")
 
     def _default_json(self):
@@ -35,7 +43,7 @@ class Job(BaseLabResource):
             "status": "NOT_STARTED",
             "type": "TRAIN",
             "progress": 0,
-            "output_file_path": self._log_path(),
+            "output_file_path": self.get_log_path(),
         }
 
     def set_experiment(self, experiment_id: str):

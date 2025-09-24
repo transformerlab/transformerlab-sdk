@@ -11,7 +11,7 @@ def train():
 
     # Training configuration
     training_config = {
-        "experiment_name": "blank",
+        "experiment_name": "alpha",
         "model_name": "HuggingFaceTB/SmolLM-135M-Instruct",
         "dataset": "Trelis/touch-rugby-rules",
         "template_name": "full-demo",
@@ -31,7 +31,7 @@ def train():
 
     try:
         # Initialize lab with default/simple API
-        lab.init(experiment_id="blank")
+        lab.init()
         lab.set_config(training_config)
 
         # Log start time
