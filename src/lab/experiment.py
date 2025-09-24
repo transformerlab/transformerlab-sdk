@@ -34,14 +34,6 @@ class Experiment(BaseLabResource):
         with open(jobs_json_path, "w") as f:
             json.dump(empty_jobs_list, f, indent=4)
 
-    @classmethod
-    def get(cls, id):
-        # First call the base get method to make sure it works
-        exp = super().get(id)
-
-        # Rebuild the jobs index to make sure it is up to date
-        exp.rebuild_jobs_index()
-
         return exp
 
     def create_job(self):
@@ -73,6 +65,10 @@ class Experiment(BaseLabResource):
         status: If not blank, filter by jobs with this status.
         """
 
+        # Rebuild the index
+        # TODO: The point of the index is to not do this every time
+        self.rebuild_jobs_index()
+
         # First get jobs of the passed type
         job_list = []
         if type:
@@ -83,11 +79,11 @@ class Experiment(BaseLabResource):
         # Iterate through the job list to return Job objects for valid jobs.
         # Also filter for status if that parameter was passed.
         results = []
-        for job in job_list:
+        for job_id in job_list:
             try:
-                job = Job.get(self.id, entry)
+                job = Job.get(job_id)
                 job_json = job._get_json_data()
-            except:
+            except Exception:
                 continue
 
             # Filter for status
@@ -109,7 +105,7 @@ class Experiment(BaseLabResource):
         """
         Path to jobs.json index file for this experiment.
         """
-        return os.path.join(self.get_dir, "jobs.json")
+        return os.path.join(self.get_dir(), "jobs.json")
 
     def rebuild_jobs_index(self):
         print("REBUiLDING JOB INDEX")
@@ -167,12 +163,13 @@ class Experiment(BaseLabResource):
         Returns all jobs of a specific type in this experiment's index file.
         """
         try:
-            with open(self._jobs_json_file(), "r") as f:
+            file = self._jobs_json_file()
+            with open(file, "r") as f:
                 jobs = json.load(f)
-                print("JOB SEARCH")
-                print(jobs)
-                return jobs.get(type, [])
-        except Exception:
+                result = jobs.get(type, [])
+                return result
+        except Exception as e:
+            print("Failed getting jobs:", e)
             return []
 
     def _add_job(self, job_id, type):
