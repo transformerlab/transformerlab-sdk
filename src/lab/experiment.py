@@ -63,6 +63,7 @@ class Experiment(BaseLabResource):
 
         new_job_id = largest_numeric_subdir + 1
         new_job = Job.create(new_job_id)
+        new_job.set_experiment(self.id)
         return new_job
 
     def get_jobs(self, type: str = "", status: str = ""):
@@ -123,13 +124,15 @@ class Experiment(BaseLabResource):
                 if not os.path.isfile(index_file):
                     continue
 
-                # Check the metadata for a type parameter and add to index
+                # Check the metadata to see if it belongs to this experiment
+                # Also check for a type parameter, then add to index
                 try:
                     with open(index_file, "r") as jf:
                         data = json.load(jf)
-                        job_type = data.get("type", "")
-                        if job_type:
-                            results.setdefault(job_type, []).append(entry)
+                        if data.get("experiment_id", "") != self.id:
+                            continue
+                        job_type = data.get("type", "UNKNOWN")
+                        results.setdefault(job_type, []).append(entry)
                 except Exception:
                     continue
 
