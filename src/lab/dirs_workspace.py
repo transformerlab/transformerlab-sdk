@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 # TFL_HOME_DIR
 if "TFL_HOME_DIR" in os.environ:
@@ -9,7 +8,7 @@ if "TFL_HOME_DIR" in os.environ:
         exit(1)
     print(f"Home directory is set to: {HOME_DIR}")
 else:
-    HOME_DIR = Path.home() / ".transformerlab"
+    HOME_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")
     os.makedirs(name=HOME_DIR, exist_ok=True)
     print(f"Using default home directory: {HOME_DIR}")
 

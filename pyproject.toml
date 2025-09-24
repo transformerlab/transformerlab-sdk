@@ -8,13 +8,9 @@ version = "0.0.6"
 description = "Python SDK for Transformer Lab"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [
-    { name = "Transformer Lab", email = "developers@transformerlab.ai" },
-]
+authors = [{ name = "Transformer Lab", email = "developers@transformerlab.ai" }]
 license = { file = "LICENSE" }
-dependencies = [
-    "werkzeug",
-]
+dependencies = ["werkzeug", "pytest"]
 
 [project.urls]
 "Homepage" = "https://github.com/transformerlab/transformerlab-sdk"
@@ -22,4 +18,3 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
-

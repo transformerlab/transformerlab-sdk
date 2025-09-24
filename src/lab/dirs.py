@@ -1,7 +1,6 @@
 # Root dir is the parent of the parent of this current directory:
 
 import os
-from pathlib import Path
 from . import dirs_workspace
 
 from werkzeug.utils import secure_filename
@@ -28,7 +27,7 @@ ROOT_DIR is a legacy variable that we should replace with the above, eventually.
 
 # FASTCHAT LOGDIR
 os.environ["LOGDIR"] = os.getenv(
-    "TFL_HOME_DIR", os.path.join(str(Path.home()), ".transformerlab")
+    "TFL_HOME_DIR", os.path.join(str(os.path.expanduser("~")), ".transformerlab")
 )
 os.environ["TLAB_LOG"] = "transformerlab.log"
 
