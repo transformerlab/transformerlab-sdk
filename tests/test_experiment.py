@@ -62,7 +62,6 @@ def test_get_jobs_filters(tmp_path, monkeypatch):
     j1 = Job.create("21")
     j1.set_experiment("exp2")
     j1.update_status("RUNNING")
-    j1_type = j1._get_json_data_field("type")
 
     j2 = Job.create("22")
     j2.set_experiment("exp2")
