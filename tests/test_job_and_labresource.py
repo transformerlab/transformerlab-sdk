@@ -42,6 +42,7 @@ def test_job_default_json_and_updates(tmp_path, monkeypatch):
     from lab.job import Job
 
     job = Job.create("1")
+    # On create, defaults are written to index.json
     data_path = os.path.join(job.get_dir(), "index.json")
     with open(data_path) as f:
         data = json.load(f)
@@ -52,8 +53,8 @@ def test_job_default_json_and_updates(tmp_path, monkeypatch):
     job.update_progress(50)
     job.update_job_data_field("k", "v")
 
-    with open(data_path) as f:
-        data = json.load(f)
+    # After updates, read using BaseLabResource helper (prefers latest snapshot)
+    data = job._get_json_data()
     assert data["status"] == "RUNNING"
     assert data["progress"] == 50
     assert data["job_data"]["k"] == "v"
@@ -81,9 +82,7 @@ def test_set_job_completion_status_validation(tmp_path, monkeypatch):
         pass
 
     job.set_job_completion_status("success", completion_details="ok", score={"acc": 1})
-    data_path = os.path.join(job.get_dir(), "index.json")
-    with open(data_path) as f:
-        data = json.load(f)
+    data = job._get_json_data()
     assert data["job_data"]["completion_status"] == "success"
     assert data["job_data"]["completion_details"] == "ok"
     assert data["job_data"]["score"] == {"acc": 1}
