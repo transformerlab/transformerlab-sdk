@@ -172,6 +172,24 @@ class Job(BaseLabResource):
 
         TODO: Using logging or something proper to do this.
         """
-        # log_file = self.get_dir
-        # self.update_output_file(message)
+        # Always print to console
         print(message)
+
+        # Coerce message to string and ensure newline termination
+        try:
+            message_str = str(message)
+        except Exception:
+            message_str = "<non-string message>"
+
+        if not message_str.endswith("\n"):
+            message_str = message_str + "\n"
+
+        # Append to the job's log file, creating directories as needed
+        try:
+            log_path = self.get_log_path()
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(message_str)
+        except Exception:
+            # Best-effort file logging; ignore file errors to avoid crashing job
+            pass
