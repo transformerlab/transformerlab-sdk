@@ -21,6 +21,12 @@ class Job(BaseLabResource):
         os.makedirs(job_dir, exist_ok=True)
         return job_dir
 
+    def _log_path(self):
+        """
+        Returns a path to the standard place Lab looks for job log files.
+        """
+        return os.path.join(self.get_dir(), f"output_{self.id}.txt")
+
     def _default_json(self):
         return {
             "id": self.id,
@@ -29,6 +35,7 @@ class Job(BaseLabResource):
             "status": "NOT_STARTED",
             "type": "TRAIN",
             "progress": 0,
+            "output_file_path": self._log_path(),
         }
 
     def set_experiment(self, experiment_id: str):
@@ -150,3 +157,13 @@ class Job(BaseLabResource):
 
         # Save the entire updated json blob
         self._set_json_data(json_data)
+
+    def log_info(self, message):
+        """
+        Save info message to output log file and display to terminal.
+
+        TODO: Using logging or something proper to do this.
+        """
+        # log_file = self.get_dir
+        # self.update_output_file(message)
+        print(message)
