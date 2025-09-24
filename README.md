@@ -10,5 +10,5 @@ You can use this to write plugins and ML scripts that integrate with Transformer
 This repo uses pytest. After installing the package (editable is fine), run:
 
 ```bash
-pytest -q
+pytest
 ```
