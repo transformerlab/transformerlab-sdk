@@ -34,7 +34,6 @@ class Experiment(BaseLabResource):
         with open(jobs_json_path, "w") as f:
             json.dump(empty_jobs_list, f, indent=4)
 
-        return exp
 
     def create_job(self):
         """
