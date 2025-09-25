@@ -117,7 +117,17 @@ class Experiment(BaseLabResource):
                 entry_path = os.path.join(JOBS_DIR, entry)
                 if not os.path.isdir(entry_path):
                     continue
+                # Prefer the latest snapshot if available; fall back to index.json
                 index_file = os.path.join(entry_path, "index.json")
+                latest_txt = os.path.join(entry_path, "latest.txt")
+                try:
+                    with open(latest_txt, "r", encoding="utf-8") as lf:
+                        latest_name = lf.read().strip()
+                    candidate = os.path.join(entry_path, latest_name)
+                    if os.path.isfile(candidate):
+                        index_file = candidate
+                except Exception:
+                    pass
                 if not os.path.isfile(index_file):
                     continue
 

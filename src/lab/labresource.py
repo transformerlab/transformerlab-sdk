@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import os
 import json
+from datetime import datetime
 
 
 class BaseLabResource(ABC):
@@ -79,12 +80,30 @@ class BaseLabResource(ABC):
         """Get json file containing metadata for this resource."""
         return os.path.join(self.get_dir(), "index.json")
 
+    def _get_latest_snapshot_file(self):
+        """
+        Return the path to the latest snapshot json file if available.
+        Falls back to the canonical index.json if not available.
+        """
+        resource_dir = self.get_dir()
+        latest_file = os.path.join(resource_dir, "latest.txt")
+        try:
+            with open(latest_file, "r", encoding="utf-8") as lf:
+                latest_name = lf.read().strip()
+            if latest_name:
+                candidate = os.path.join(resource_dir, latest_name)
+                if os.path.isfile(candidate):
+                    return candidate
+        except FileNotFoundError:
+            pass
+        return self._get_json_file()
+
     def _get_json_data(self):
         """
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
         """
-        json_file = self._get_json_file()
+        json_file = self._get_latest_snapshot_file()
 
         # Try opening this file location and parsing the json inside
         # On any error return an empty dict
@@ -106,9 +125,17 @@ class BaseLabResource(ABC):
         if not isinstance(json_data, dict):
             raise TypeError("json_data must be a dict")
 
-        json_file = self._get_json_file()
-        with open(json_file, "w", encoding="utf-8") as f:
-            json.dump(json_data, f, ensure_ascii=False)
+        # Create a new timestamped snapshot file and update latest.txt
+        resource_dir = self.get_dir()
+        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+        version_filename = f"index-{timestamp}.json"
+        version_path = os.path.join(resource_dir, version_filename)
+        with open(version_path, "w", encoding="utf-8") as vf:
+            json.dump(json_data, vf, ensure_ascii=False)
+
+        latest_file = os.path.join(resource_dir, "latest.txt")
+        with open(latest_file, "w", encoding="utf-8") as lf:
+            lf.write(version_filename)
 
     def _get_json_data_field(self, key, default=""):
         """Gets the value of a single top-level field in a JSON object"""
