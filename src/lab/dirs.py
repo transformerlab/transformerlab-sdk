@@ -29,7 +29,6 @@ ROOT_DIR is a legacy variable that we should replace with the above, eventually.
 os.environ["LOGDIR"] = os.getenv(
     "TFL_HOME_DIR", os.path.join(str(os.path.expanduser("~")), ".transformerlab")
 )
-os.environ["TLAB_LOG"] = "transformerlab.log"
 
 # EXPERIMENTS_DIR
 EXPERIMENTS_DIR: str = os.path.join(WORKSPACE_DIR, "experiments")
@@ -41,7 +40,7 @@ os.makedirs(name=JOBS_DIR, exist_ok=True)
 
 # GLOBAL_LOG_PATH
 # MTMIGRATE: This doesn't work in multi-tenant world
-GLOBAL_LOG_PATH = os.path.join(HOME_DIR, "transformerlab.log")
+GLOBAL_LOG_PATH = os.path.join(WORKSPACE_DIR, "transformerlab.log")
 
 # OTHER LOGS DIR:
 LOGS_DIR = os.path.join(HOME_DIR, "logs")
