@@ -12,6 +12,52 @@ class Model(BaseLabResource):
         model_id_safe = secure_filename(str(self.id))
         return os.path.join(MODELS_DIR, model_id_safe)
 
+    def _default_json(self):
+        # Default metadata modeled after API model table fields
+        return {
+            "model_id": self.id,
+            "name": self.id,
+            "json_data": {},
+        }
+
+    def set_metadata(self, *, model_id: str | None = None, name: str | None = None, json_data: dict | None = None):
+        """Set model metadata, similar to dataset service"""
+        data = self._get_json_data()
+        if model_id is not None:
+            data["model_id"] = model_id
+        if name is not None:
+            data["name"] = name
+        if json_data is not None:
+            # merge (shallow) to maintain parity and avoid dropping keys
+            current = data.get("json_data", {})
+            if not isinstance(current, dict):
+                current = {}
+            current.update(json_data)
+            data["json_data"] = current
+        self._set_json_data(data)
+
+    def get_metadata(self):
+        """Get model metadata"""
+        return self._get_json_data()
+
+    @staticmethod
+    def list_all():
+        """List all models in the filesystem, similar to dataset service"""
+        results = []
+        if not os.path.isdir(MODELS_DIR):
+            return results
+        for entry in os.listdir(MODELS_DIR):
+            full = os.path.join(MODELS_DIR, entry)
+            if not os.path.isdir(full):
+                continue
+            # Attempt to read index.json (or latest snapshot)
+            try:
+                model = Model(entry)
+                results.append(model.get_metadata())
+            except Exception:
+                continue
+        return results
+
     def import_model(self, model_name, model_path):
         """
         Given a model name and path, create a new model that can be used in the workspace.
@@ -55,7 +101,7 @@ class Model(BaseLabResource):
         model_description["json_data"].update(json_data)
 
         # Output the json to the file
-        with open(os.path.join(self.get_dir(), "info.json"), "w") as outfile:
+        with open(os.path.join(self.get_dir(), "index.json"), "w") as outfile:
             json.dump(model_description, outfile)
 
         return model_description
