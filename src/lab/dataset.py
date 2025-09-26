@@ -1,5 +1,4 @@
 import os
-import json
 from werkzeug.utils import secure_filename
 
 from .dirs import DATASETS_DIR
