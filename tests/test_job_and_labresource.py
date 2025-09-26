@@ -60,7 +60,7 @@ def test_job_default_json_and_updates(tmp_path, monkeypatch):
     assert data["job_data"]["k"] == "v"
 
 
-def test_set_job_completion_status_validation(tmp_path, monkeypatch):
+def test_job_data_field_updates(tmp_path, monkeypatch):
     for mod in ["lab.job", "lab.dirs", "lab.dirs_workspace"]:
         if mod in importlib.sys.modules:
             importlib.sys.modules.pop(mod)
@@ -75,13 +75,12 @@ def test_set_job_completion_status_validation(tmp_path, monkeypatch):
     from lab.job import Job
 
     job = Job.create("2")
-    try:
-        job.set_job_completion_status("invalid")
-        assert False, "Expected ValueError"
-    except ValueError:
-        pass
-
-    job.set_job_completion_status("success", completion_details="ok", score={"acc": 1})
+    
+    # Test updating job data fields directly
+    job.update_job_data_field("completion_status", "success")
+    job.update_job_data_field("completion_details", "ok")
+    job.update_job_data_field("score", {"acc": 1})
+    
     data = job._get_json_data()
     assert data["job_data"]["completion_status"] == "success"
     assert data["job_data"]["completion_details"] == "ok"

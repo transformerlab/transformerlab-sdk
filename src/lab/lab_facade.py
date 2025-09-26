@@ -64,13 +64,14 @@ class Lab:
         self._ensure_initialized()
         self._job.update_progress(100)  # type: ignore[union-attr]
         self._job.update_status("COMPLETE")  # type: ignore[union-attr]
-        self._job.set_job_completion_status(  # type: ignore[union-attr]
-            completion_status="success",
-            completion_details=message,
-            score=score,
-            additional_output_path=additional_output_path,
-            plot_data_path=plot_data_path,
-        )
+        self._job.update_job_data_field("completion_status", "success")  # type: ignore[union-attr]
+        self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
+        if score is not None:
+            self._job.update_job_data_field("score", score)  # type: ignore[union-attr]
+        if additional_output_path is not None and additional_output_path.strip() != "":
+            self._job.update_job_data_field("additional_output_path", additional_output_path)  # type: ignore[union-attr]
+        if plot_data_path is not None and plot_data_path.strip() != "":
+            self._job.update_job_data_field("plot_data_path", plot_data_path)  # type: ignore[union-attr]
 
     def error(
         self,
@@ -81,10 +82,9 @@ class Lab:
         """
         self._ensure_initialized()
         self._job.update_status("COMPLETE")  # type: ignore[union-attr]
-        self._job.set_job_completion_status(  # type: ignore[union-attr]
-            completion_status="failed",
-            completion_details=message,
-        )
+        self._job.update_job_data_field("completion_status", "failed")  # type: ignore[union-attr]
+        self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
+        self._job.update_job_data_field("status", "FAILED")  # type: ignore[union-attr]
 
     # ------------- helpers -------------
     def _ensure_initialized(self) -> None:
