@@ -35,11 +35,28 @@ class Experiment(BaseLabResource):
         with open(jobs_json_path, "w") as f:
             json.dump(empty_jobs_list, f, indent=4)
 
+    def get_experiment(self):
+        """Get the experiment metadata as a dict."""
+        return self._get_json_data()
+    
     def update_config_field(self, key, value):
         """Update a single key in config."""
         current_config = self._get_json_data_field("config", {})
         current_config[key] = value
         self._update_json_data_field("config", current_config)
+    
+    @classmethod
+    def create_with_config(cls, name: str, config: dict) -> 'Experiment':
+        """Create an experiment with config."""
+        exp = cls.create(name)
+        exp._update_json_data_field("config", json.dumps(config))
+        return exp
+
+    def update_config(self, config: dict):
+        """Update entire config."""
+        current_config = self._get_json_data_field("config", {})
+        current_config.update(config)
+        self._update_json_data_field("config", json.dumps(current_config))
 
     @classmethod
     def get_all(cls):
