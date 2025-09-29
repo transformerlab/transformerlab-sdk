@@ -56,7 +56,7 @@ class Experiment(BaseLabResource):
         new_job.set_experiment(self.id)
         # Persist default log path to job_data for external consumers
         default_log_path = os.path.join(new_job.get_dir(), f"output_{new_job.id}.txt")
-        new_job.update_job_data_field("_tlab_logging_file", default_log_path)
+        new_job.update_job_data_field("output_file_path", default_log_path)
         return new_job
 
     def get_jobs(self, type: str = "", status: str = ""):
