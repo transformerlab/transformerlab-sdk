@@ -25,15 +25,26 @@ class Job(BaseLabResource):
         """
         Returns the path where this job should write logs.
         """
+        # Set a default location for log file
+        log_path = os.path.join(self.get_dir(), f"output_{self.id}.txt")
+
+        # Then check if there is a path explicitly set in the job data
         try:
             job_data = self.get_job_data()
             if isinstance(job_data, dict):
                 override_path = job_data.get("_tlab_logging_file", "")
                 if isinstance(override_path, str) and override_path.strip() != "":
-                    return override_path
+                    log_path = override_path
         except Exception:
             pass
-        return os.path.join(self.get_dir(), f"output_{self.id}.txt")
+
+        # Make sure whatever log_path we return actually exists
+        # Put an empty file there if not
+        if not os.path.exists(log_path):
+            with open(log_path, "w") as f:
+                f.write("")
+
+        return log_path
 
     def _default_json(self):
         return {
@@ -107,7 +118,6 @@ class Job(BaseLabResource):
         # Set the key property to value and save the whole object
         json_data["job_data"][key] = value
         self._set_json_data(json_data)
-
 
     def log_info(self, message):
         """
