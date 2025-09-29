@@ -21,21 +21,42 @@ class Job(BaseLabResource):
         os.makedirs(job_dir, exist_ok=True)
         return job_dir
 
-    def _log_path(self):
+    def get_log_path(self):
         """
-        Returns a path to the standard place Lab looks for job log files.
+        Returns the path where this job should write logs.
         """
-        return os.path.join(self.get_dir(), f"output_{self.id}.txt")
+        # Default location for log file
+        log_path = os.path.join(self.get_dir(), f"output_{self.id}.txt")
+
+        # Then check if there is a path explicitly set in the job data
+        try:
+            job_data = self.get_job_data()
+            if isinstance(job_data, dict):
+                override_path = job_data.get("output_file_path", "")
+                if isinstance(override_path, str) and override_path.strip() != "":
+                    log_path = override_path
+        except Exception:
+            pass
+
+        # Make sure whatever log_path we return actually exists
+        # Put an empty file there if not
+        if not os.path.exists(log_path):
+            with open(log_path, "w") as f:
+                f.write("")
+
+        return log_path
 
     def _default_json(self):
+        default_job_data = {
+            "output_file_path": self.get_log_path(),
+        }
         return {
             "id": self.id,
             "experiment_id": "",
-            "job_data": {},
+            "job_data": default_job_data,
             "status": "NOT_STARTED",
             "type": "TRAIN",
             "progress": 0,
-            "output_file_path": self._log_path(),
         }
 
     def set_experiment(self, experiment_id: str):
@@ -100,70 +121,30 @@ class Job(BaseLabResource):
         json_data["job_data"][key] = value
         self._set_json_data(json_data)
 
-    def set_job_completion_status(
-        self,
-        completion_status: str,
-        completion_details: str = "",
-        score: dict = None,
-        additional_output_path: str = None,
-        plot_data_path: str = None,
-    ):
-        """
-        A job could be in the "complete" state but still have failed, so this
-        function is used to set the job completion status. i.e. how the task
-        that the job is executing has completed.
-        and if the job failed, the details of the failure.
-        Score should be a json of the format {"metric_name": value, ...}
-
-        Throws:
-        ValueError if completion_status isn't one of "success" or "failed"
-        """
-        if completion_status not in ("success", "failed"):
-            raise ValueError("completion_status must be either 'success' or 'failed'")
-
-        # Fetch current job_data
-        json_data = self._get_json_data()
-
-        # If there isn't a job_data property then make one
-        if "job_data" not in json_data:
-            json_data["job_data"] = {}
-
-        # Add to job data completion_status and completion_details
-        json_data["job_data"]["completion_status"] = completion_status
-        json_data["job_data"]["completion_details"] = completion_details
-
-        # Update the job status field if there's a failure
-        if completion_status == "failed":
-            json_data["job_data"]["status"] = "FAILED"
-
-        if score is not None:
-            json_data["job_data"]["score"] = score
-
-        # Determine if additional_output_path and plot_data_path are valid and set
-        valid_output_path = (
-            additional_output_path
-            if additional_output_path and additional_output_path.strip() != ""
-            else None
-        )
-        valid_plot_data_path = (
-            plot_data_path if plot_data_path and plot_data_path.strip() != "" else None
-        )
-
-        if valid_output_path is not None:
-            json_data["job_data"]["additional_output_path"] = valid_output_path
-
-        if valid_plot_data_path is not None:
-            json_data["job_data"]["plot_data_path"] = valid_plot_data_path
-
-        # Save the entire updated json blob
-        self._set_json_data(json_data)
-
     def log_info(self, message):
         """
         Save info message to output log file and display to terminal.
 
         TODO: Using logging or something proper to do this.
         """
-        # log_file = self.get_dir
-        # self.update_output_file(message)
+        # Always print to console
         print(message)
+
+        # Coerce message to string and ensure newline termination
+        try:
+            message_str = str(message)
+        except Exception:
+            message_str = "<non-string message>"
+
+        if not message_str.endswith("\n"):
+            message_str = message_str + "\n"
+
+        # Append to the job's log file, creating directories as needed
+        try:
+            log_path = self.get_log_path()
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(message_str)
+        except Exception:
+            # Best-effort file logging; ignore file errors to avoid crashing job
+            pass

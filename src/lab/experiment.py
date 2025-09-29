@@ -1,4 +1,5 @@
 import os
+import shutil
 from werkzeug.utils import secure_filename
 
 from .dirs import EXPERIMENTS_DIR, JOBS_DIR
@@ -34,6 +35,30 @@ class Experiment(BaseLabResource):
         with open(jobs_json_path, "w") as f:
             json.dump(empty_jobs_list, f, indent=4)
 
+    def update_config_field(self, key, value):
+        """Update a single key in config."""
+        current_config = self._get_json_data_field("config", {})
+        current_config[key] = value
+        self._update_json_data_field("config", current_config)
+
+    @classmethod
+    def get_all(cls):
+        """Get all experiments as list of dicts."""
+        experiments = []
+        if os.path.exists(EXPERIMENTS_DIR):
+            for entry in os.listdir(EXPERIMENTS_DIR):
+                exp_path = os.path.join(EXPERIMENTS_DIR, entry)
+                if os.path.isdir(exp_path):
+                    index_file = os.path.join(exp_path, "index.json")
+                    if os.path.exists(index_file):
+                        try:
+                            with open(index_file, "r") as f:
+                                data = json.load(f)
+                            experiments.append(data)
+                        except Exception:
+                            pass
+        return experiments
+
     def create_job(self):
         """
         Creates a new job with a blank template and returns a Job object.
@@ -54,6 +79,9 @@ class Experiment(BaseLabResource):
         new_job_id = largest_numeric_subdir + 1
         new_job = Job.create(new_job_id)
         new_job.set_experiment(self.id)
+        # Persist default log path to job_data for external consumers
+        default_log_path = os.path.join(new_job.get_dir(), f"output_{new_job.id}.txt")
+        new_job.update_job_data_field("output_file_path", default_log_path)
         return new_job
 
     def get_jobs(self, type: str = "", status: str = ""):
@@ -187,3 +215,21 @@ class Experiment(BaseLabResource):
                 jobs[type].append(job_id)
             else:
                 jobs[type] = [job_id]
+
+    def delete(self):
+        """Delete the experiment and all associated jobs."""
+        # Delete all associated jobs
+        all_jobs = self._get_all_jobs()
+        for job_id in all_jobs:
+            try:
+                job = Job.get(job_id)
+                job_dir = job.get_dir()
+                if os.path.exists(job_dir):
+                    shutil.rmtree(job_dir)
+            except Exception:
+                pass  # Job might not exist
+        
+        # Delete the experiment directory
+        exp_dir = self.get_dir()
+        if os.path.exists(exp_dir):
+            shutil.rmtree(exp_dir)
