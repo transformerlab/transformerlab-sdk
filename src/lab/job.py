@@ -90,7 +90,7 @@ class Job(BaseLabResource):
         Updates a key-value pair in the job_data JSON object.
         """
         # Fetch current job_data
-        json_data = self._get_json_data()
+        json_data = self.get_json_data()
 
         # If there isn't a job_data property then make one
         if "job_data" not in json_data:
@@ -122,7 +122,7 @@ class Job(BaseLabResource):
             raise ValueError("completion_status must be either 'success' or 'failed'")
 
         # Fetch current job_data
-        json_data = self._get_json_data()
+        json_data = self.get_json_data()
 
         # If there isn't a job_data property then make one
         if "job_data" not in json_data:

@@ -34,10 +34,6 @@ class Experiment(BaseLabResource):
         empty_jobs_list = self.DEFAULT_JOBS_INDEX
         with open(jobs_json_path, "w") as f:
             json.dump(empty_jobs_list, f, indent=4)
-
-    def get_experiment(self):
-        """Get the experiment metadata as a dict."""
-        return self._get_json_data()
     
     def update_config_field(self, key, value):
         """Update a single key in config."""
@@ -122,7 +118,7 @@ class Experiment(BaseLabResource):
         for job_id in job_list:
             try:
                 job = Job.get(job_id)
-                job_json = job._get_json_data()
+                job_json = job.get_json_data()
             except Exception:
                 continue
 
