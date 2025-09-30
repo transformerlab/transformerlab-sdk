@@ -90,8 +90,11 @@ class Experiment(BaseLabResource):
                         largest_numeric_subdir = job_id
 
         new_job_id = largest_numeric_subdir + 1
+
+        # Create job with next available job_id and associate the new job with this experiment
         new_job = Job.create(new_job_id)
         new_job.set_experiment(self.id)
+
         return new_job
 
     def get_jobs(self, type: str = "", status: str = ""):
