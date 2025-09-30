@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import os
 import json
+import shutil
 from datetime import datetime
 
 
@@ -147,3 +148,12 @@ class BaseLabResource(ABC):
         json_data = self._get_json_data()
         json_data[key] = value
         self._set_json_data(json_data)
+
+    def delete(self):
+        """
+        Delete this resource by deleting the containing directory.
+        TODO: We should change to soft delete
+        """
+        resource_dir = self.get_dir()
+        if os.path.exists(resource_dir):
+            shutil.rmtree(resource_dir)
