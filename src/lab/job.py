@@ -1,4 +1,6 @@
 import os
+import json
+from datetime import datetime
 from werkzeug.utils import secure_filename
 
 from . import dirs
@@ -148,3 +150,79 @@ class Job(BaseLabResource):
         except Exception:
             # Best-effort file logging; ignore file errors to avoid crashing job
             pass
+
+    def set_type(self, job_type: str):
+        """
+        Set the type of this job.
+        """
+        self._update_json_data_field("type", job_type)
+
+    def get_experiment_id(self):
+        """
+        Get the experiment_id of this job.
+        """
+        return self._get_json_data_field("experiment_id")
+
+    def set_error_message(self, error_msg: str):
+        """
+        Set an error message in the job_data.
+        """
+        self.update_job_data_field("error_msg", str(error_msg))
+
+    def update_sweep_progress(self, value):
+        """
+        Update the 'sweep_progress' key in the job_data JSON object.
+        """
+        self.update_job_data_field("sweep_progress", value)
+
+    @classmethod
+    def count_running_jobs(cls):
+        """
+        Count how many jobs are currently running.
+        """
+        count = 0
+        if os.path.exists(dirs.JOBS_DIR):
+            for entry in os.listdir(dirs.JOBS_DIR):
+                job_path = os.path.join(dirs.JOBS_DIR, entry)
+                if os.path.isdir(job_path):
+                    try:
+                        job = cls.get(entry)
+                        job_data = job.get_json_data()
+                        if job_data.get("status") == "RUNNING":
+                            count += 1
+                    except Exception:
+                        pass
+        return count
+
+    @classmethod
+    def get_next_queued_job(cls):
+        """
+        Get the next queued job (oldest first based on directory creation time).
+        Returns Job data dict or None if no queued jobs.
+        """
+        queued_jobs = []
+        if os.path.exists(dirs.JOBS_DIR):
+            for entry in os.listdir(dirs.JOBS_DIR):
+                job_path = os.path.join(dirs.JOBS_DIR, entry)
+                if os.path.isdir(job_path):
+                    try:
+                        job = cls.get(entry)
+                        job_data = job.get_json_data()
+                        if job_data.get("status") == "QUEUED":
+                            # Use filesystem creation time for sorting
+                            creation_time = os.path.getctime(job_path)
+                            queued_jobs.append((creation_time, job_data))
+                    except Exception:
+                        pass
+        
+        if queued_jobs:
+            # Sort by creation time and return the oldest
+            queued_jobs.sort(key=lambda x: x[0])
+            return queued_jobs[0][1]
+        return None
+
+    def delete(self):
+        """
+        Mark this job as deleted.
+        """
+        self.update_status("DELETED")
