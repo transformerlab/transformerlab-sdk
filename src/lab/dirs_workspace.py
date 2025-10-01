@@ -1,4 +1,5 @@
 import os
+from .workspace import get_workspace_dir
 
 # TFL_HOME_DIR
 if "TFL_HOME_DIR" in os.environ:
@@ -20,6 +21,7 @@ if "TFL_WORKSPACE_DIR" in os.environ:
         exit(1)
     print(f"Workspace is set to: {WORKSPACE_DIR}")
 else:
-    WORKSPACE_DIR = os.path.join(HOME_DIR, "workspace")
+    # Dynamically resolve per current app user/org, with legacy fallback inside helper
+    WORKSPACE_DIR = get_workspace_dir()
     os.makedirs(name=WORKSPACE_DIR, exist_ok=True)
-    print(f"Using default workspace directory: {WORKSPACE_DIR}")
+    print(f"Using resolved workspace directory: {WORKSPACE_DIR}")
