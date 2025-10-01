@@ -2,7 +2,7 @@ import os
 import shutil
 from werkzeug.utils import secure_filename
 
-from .dirs import EXPERIMENTS_DIR, JOBS_DIR
+from .dirs import get_experiments_dir, get_jobs_dir
 from .labresource import BaseLabResource
 from .job import Job
 import json
@@ -21,7 +21,7 @@ class Experiment(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         experiment_id_safe = secure_filename(str(self.id))
-        return os.path.join(EXPERIMENTS_DIR, experiment_id_safe)
+        return os.path.join(get_experiments_dir(), experiment_id_safe)
 
     def _default_json(self):
         return {"name": self.id, "config": {}}
@@ -45,9 +45,10 @@ class Experiment(BaseLabResource):
     def get_all(cls):
         """Get all experiments as list of dicts."""
         experiments = []
-        if os.path.exists(EXPERIMENTS_DIR):
-            for entry in os.listdir(EXPERIMENTS_DIR):
-                exp_path = os.path.join(EXPERIMENTS_DIR, entry)
+        exp_root = get_experiments_dir()
+        if os.path.exists(exp_root):
+            for entry in os.listdir(exp_root):
+                exp_path = os.path.join(exp_root, entry)
                 if os.path.isdir(exp_path):
                     index_file = os.path.join(exp_path, "index.json")
                     if os.path.exists(index_file):
@@ -68,9 +69,9 @@ class Experiment(BaseLabResource):
         # Scan the jobs directory for subdirectories with numberic names
         # Find the largest number and increment to get the new job ID
         largest_numeric_subdir = 0
-        for entry in os.listdir(JOBS_DIR):
+        for entry in os.listdir(get_jobs_dir()):
             if entry.isdigit():
-                full_path = os.path.join(JOBS_DIR, entry)
+                full_path = os.path.join(get_jobs_dir(), entry)
                 if os.path.isdir(full_path):
                     job_id = int(entry)
                     if job_id > largest_numeric_subdir:

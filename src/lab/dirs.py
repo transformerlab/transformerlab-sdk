@@ -5,7 +5,11 @@ from . import dirs_workspace
 
 from werkzeug.utils import secure_filename
 
-WORKSPACE_DIR = dirs_workspace.WORKSPACE_DIR
+def get_workspace_dir() -> str:
+    return dirs_workspace.get_workspace_dir()
+
+
+WORKSPACE_DIR = get_workspace_dir()
 HOME_DIR = dirs_workspace.HOME_DIR
 
 """
@@ -30,17 +34,19 @@ os.environ["LOGDIR"] = os.getenv(
     "TFL_HOME_DIR", os.path.join(str(os.path.expanduser("~")), ".transformerlab")
 )
 
-# EXPERIMENTS_DIR
-EXPERIMENTS_DIR: str = os.path.join(WORKSPACE_DIR, "experiments")
-os.makedirs(name=EXPERIMENTS_DIR, exist_ok=True)
+def get_experiments_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "experiments")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
-# JOBS DIR
-JOBS_DIR = os.path.join(WORKSPACE_DIR, "jobs")
-os.makedirs(name=JOBS_DIR, exist_ok=True)
+def get_jobs_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "jobs")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
 # GLOBAL_LOG_PATH
 # MTMIGRATE: This doesn't work in multi-tenant world
-GLOBAL_LOG_PATH = os.path.join(WORKSPACE_DIR, "transformerlab.log")
+GLOBAL_LOG_PATH = os.path.join(get_workspace_dir(), "transformerlab.log")
 
 # OTHER LOGS DIR:
 LOGS_DIR = os.path.join(HOME_DIR, "logs")
@@ -52,8 +58,7 @@ def experiment_dir_by_name(experiment_name: str) -> str:
     return os.path.join(EXPERIMENTS_DIR, experiment_name)
 
 
-# PLUGIN_DIR
-PLUGIN_DIR = os.path.join(WORKSPACE_DIR, "plugins")
+PLUGIN_DIR = os.path.join(get_workspace_dir(), "plugins")
 
 
 def plugin_dir_by_name(plugin_name: str) -> str:
@@ -61,12 +66,10 @@ def plugin_dir_by_name(plugin_name: str) -> str:
     return os.path.join(PLUGIN_DIR, plugin_name)
 
 
-# MODELS_DIR
-MODELS_DIR = os.path.join(WORKSPACE_DIR, "models")
+MODELS_DIR = os.path.join(get_workspace_dir(), "models")
 os.makedirs(name=MODELS_DIR, exist_ok=True)
 
-# DATASETS_DIR
-DATASETS_DIR = os.path.join(WORKSPACE_DIR, "datasets")
+DATASETS_DIR = os.path.join(get_workspace_dir(), "datasets")
 os.makedirs(name=DATASETS_DIR, exist_ok=True)
 
 
@@ -74,23 +77,23 @@ def dataset_dir_by_id(dataset_id: str) -> str:
     return os.path.join(DATASETS_DIR, dataset_id)
 
 
-TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
+TEMP_DIR = os.path.join(get_workspace_dir(), "temp")
 os.makedirs(name=TEMP_DIR, exist_ok=True)
 
 
 # Prompt Templates Dir:
-PROMPT_TEMPLATES_DIR = os.path.join(WORKSPACE_DIR, "prompt_templates")
+PROMPT_TEMPLATES_DIR = os.path.join(get_workspace_dir(), "prompt_templates")
 os.makedirs(name=PROMPT_TEMPLATES_DIR, exist_ok=True)
 
 # Tools Dir:
-TOOLS_DIR = os.path.join(WORKSPACE_DIR, "tools")
+TOOLS_DIR = os.path.join(get_workspace_dir(), "tools")
 os.makedirs(name=TOOLS_DIR, exist_ok=True)
 
 # Batched Prompts Dir:
-BATCHED_PROMPTS_DIR = os.path.join(WORKSPACE_DIR, "batched_prompts")
+BATCHED_PROMPTS_DIR = os.path.join(get_workspace_dir(), "batched_prompts")
 os.makedirs(name=BATCHED_PROMPTS_DIR, exist_ok=True)
 
-GALLERIES_CACHE_DIR = os.path.join(WORKSPACE_DIR, "galleries")
+GALLERIES_CACHE_DIR = os.path.join(get_workspace_dir(), "galleries")
 os.makedirs(name=GALLERIES_CACHE_DIR, exist_ok=True)
 
 # Evals output file:
