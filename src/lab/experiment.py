@@ -228,7 +228,7 @@ class Experiment(BaseLabResource):
                 jobs[type].append(job_id)
             else:
                 jobs[type] = [job_id]
-
+    # TODO: change this and use delete mothed in job.py to delete jobs
     def delete(self):
         """Delete the experiment and all associated jobs."""
         # Delete all associated jobs
@@ -246,3 +246,13 @@ class Experiment(BaseLabResource):
         exp_dir = self.get_dir()
         if os.path.exists(exp_dir):
             shutil.rmtree(exp_dir)
+
+    def delete_all_jobs(self):
+        """Delete all jobs associated with this experiment."""
+        all_jobs = self._get_all_jobs()
+        for job_id in all_jobs:
+            try:
+                job = Job.get(job_id)
+                job.delete()
+            except Exception:
+                pass  # Job might not exist
