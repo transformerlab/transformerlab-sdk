@@ -55,7 +55,8 @@ os.makedirs(name=LOGS_DIR, exist_ok=True)
 
 # TODO: Move this to Experiment
 def experiment_dir_by_name(experiment_name: str) -> str:
-    return os.path.join(EXPERIMENTS_DIR, experiment_name)
+    experiments_dir = get_experiments_dir()
+    return os.path.join(experiments_dir, experiment_name)
 
 
 PLUGIN_DIR = os.path.join(get_workspace_dir(), "plugins")

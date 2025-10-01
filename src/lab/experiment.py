@@ -139,8 +139,8 @@ class Experiment(BaseLabResource):
         results = {}
         try:
             # Iterate through jobs directories and check for index.json
-            for entry in os.listdir(JOBS_DIR):
-                entry_path = os.path.join(JOBS_DIR, entry)
+            for entry in os.listdir(get_jobs_dir()):
+                entry_path = os.path.join(get_jobs_dir(), entry)
                 if not os.path.isdir(entry_path):
                     continue
                 # Prefer the latest snapshot if available; fall back to index.json

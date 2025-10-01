@@ -22,8 +22,8 @@ def test_dirs_structure_created(monkeypatch, tmp_path):
     dirs = _fresh_import_dirs(monkeypatch)
 
     # Key directories exist
-    assert os.path.isdir(dirs.EXPERIMENTS_DIR)
-    assert os.path.isdir(dirs.JOBS_DIR)
+    assert os.path.isdir(dirs.get_experiments_dir())
+    assert os.path.isdir(dirs.get_jobs_dir())
     assert os.path.isdir(dirs.MODELS_DIR)
     assert os.path.isdir(dirs.DATASETS_DIR)
     assert os.path.isdir(dirs.TEMP_DIR)
