@@ -226,3 +226,32 @@ class Job(BaseLabResource):
         Mark this job as deleted.
         """
         self.update_status("DELETED")
+    
+    def set_job_completion_status(
+        self,
+        completion_status: str,
+        completion_details: str,
+        score: dict = None,
+        additional_output_path: str = None,
+        plot_data_path: str = None,
+    ):
+        """
+        Set job completion status and related data.
+        """
+        if completion_status not in ("success", "failed"):
+            raise ValueError("completion_status must be either 'success' or 'failed'")
+
+        self.update_job_data_field("completion_status", completion_status)
+        self.update_job_data_field("completion_details", completion_details)
+
+        if completion_status == "failed":
+            self.update_status("FAILED")
+
+        if score is not None:
+            self.update_job_data_field("score", score)
+
+        if additional_output_path and additional_output_path.strip():
+            self.update_job_data_field("additional_output_path", additional_output_path)
+
+        if plot_data_path and plot_data_path.strip():
+            self.update_job_data_field("plot_data_path", plot_data_path)
