@@ -69,6 +69,10 @@ os.makedirs(name=MODELS_DIR, exist_ok=True)
 DATASETS_DIR = os.path.join(WORKSPACE_DIR, "datasets")
 os.makedirs(name=DATASETS_DIR, exist_ok=True)
 
+# TASKS_DIR
+TASKS_DIR = os.path.join(WORKSPACE_DIR, "tasks")
+os.makedirs(name=TASKS_DIR, exist_ok=True)
+
 
 def dataset_dir_by_id(dataset_id: str) -> str:
     return os.path.join(DATASETS_DIR, dataset_id)
