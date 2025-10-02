@@ -3,7 +3,7 @@ import importlib
 
 
 def _fresh_import_dirs(monkeypatch):
-    for mod in ["lab.dirs", "lab.dirs_workspace"]:
+    for mod in ["lab.dirs"]:
         if mod in importlib.sys.modules:
             importlib.sys.modules.pop(mod)
     from lab import dirs  # noqa: F401

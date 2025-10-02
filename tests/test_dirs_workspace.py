@@ -8,12 +8,12 @@ def test_default_dirs_created(monkeypatch, tmp_path):
     monkeypatch.delenv("TFL_WORKSPACE_DIR", raising=False)
 
     # Ensure fresh import
-    if "lab.dirs_workspace" in list(importlib.sys.modules.keys()):
-        importlib.sys.modules.pop("lab.dirs_workspace")
+    if "lab.dirs" in list(importlib.sys.modules.keys()):
+        importlib.sys.modules.pop("lab.dirs")
 
     # HOME is already isolated via conftest
 
-    from lab import dirs_workspace
+    from lab import dirs as dirs_workspace
 
     assert os.path.isdir(dirs_workspace.HOME_DIR)
     assert os.path.isdir(dirs_workspace.WORKSPACE_DIR)
@@ -36,10 +36,10 @@ def test_env_override_existing_paths(monkeypatch, tmp_path):
     monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
 
     # Fresh import
-    if "lab.dirs_workspace" in list(importlib.sys.modules.keys()):
-        importlib.sys.modules.pop("lab.dirs_workspace")
+    if "lab.dirs" in list(importlib.sys.modules.keys()):
+        importlib.sys.modules.pop("lab.dirs")
 
-    from lab import dirs_workspace
+    from lab import dirs as dirs_workspace
 
     assert dirs_workspace.HOME_DIR == str(home)
     assert dirs_workspace.WORKSPACE_DIR == str(ws)
@@ -53,10 +53,10 @@ def test_org_scoped_workspace_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("TFL_HOME_DIR", str(home))
 
     # Fresh import
-    if "lab.dirs_workspace" in list(importlib.sys.modules.keys()):
-        importlib.sys.modules.pop("lab.dirs_workspace")
+    if "lab.dirs" in list(importlib.sys.modules.keys()):
+        importlib.sys.modules.pop("lab.dirs")
 
-    from lab import dirs_workspace
+    from lab import dirs as dirs_workspace
 
     # Set organization id → should route to org-scoped workspace
     dirs_workspace.set_organization_id("acme")
