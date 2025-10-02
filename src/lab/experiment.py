@@ -34,7 +34,7 @@ class Experiment(BaseLabResource):
         empty_jobs_list = self.DEFAULT_JOBS_INDEX
         with open(jobs_json_path, "w") as f:
             json.dump(empty_jobs_list, f, indent=4)
-    
+
     def update_config_field(self, key, value):
         """Update a single key in config."""
         current_config = self._get_json_data_field("config", {})
