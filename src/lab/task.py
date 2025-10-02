@@ -1,5 +1,4 @@
 import os
-import json
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
