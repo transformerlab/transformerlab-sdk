@@ -54,7 +54,7 @@ def test_job_default_json_and_updates(tmp_path, monkeypatch):
     job.update_job_data_field("k", "v")
 
     # After updates, read using BaseLabResource helper (prefers latest snapshot)
-    data = job._get_json_data()
+    data = job.get_json_data()
     assert data["status"] == "RUNNING"
     assert data["progress"] == 50
     assert data["job_data"]["k"] == "v"
@@ -80,8 +80,8 @@ def test_job_data_field_updates(tmp_path, monkeypatch):
     job.update_job_data_field("completion_status", "success")
     job.update_job_data_field("completion_details", "ok")
     job.update_job_data_field("score", {"acc": 1})
-    
-    data = job._get_json_data()
+
+    data = job.get_json_data()
     assert data["job_data"]["completion_status"] == "success"
     assert data["job_data"]["completion_details"] == "ok"
     assert data["job_data"]["score"] == {"acc": 1}

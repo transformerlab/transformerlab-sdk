@@ -40,6 +40,19 @@ class Experiment(BaseLabResource):
         current_config = self._get_json_data_field("config", {})
         current_config[key] = value
         self._update_json_data_field("config", current_config)
+    
+    @classmethod
+    def create_with_config(cls, name: str, config: dict) -> 'Experiment':
+        """Create an experiment with config."""
+        exp = cls.create(name)
+        exp._update_json_data_field("config", json.dumps(config))
+        return exp
+
+    def update_config(self, config: dict):
+        """Update entire config."""
+        current_config = self._get_json_data_field("config", {})
+        current_config.update(config)
+        self._update_json_data_field("config", json.dumps(current_config))
 
     @classmethod
     def get_all(cls):
@@ -108,7 +121,7 @@ class Experiment(BaseLabResource):
         for job_id in job_list:
             try:
                 job = Job.get(job_id)
-                job_json = job._get_json_data()
+                job_json = job.get_json_data()
             except Exception:
                 continue
 
@@ -215,21 +228,23 @@ class Experiment(BaseLabResource):
                 jobs[type].append(job_id)
             else:
                 jobs[type] = [job_id]
-
+    
+    # TODO: For experiments, delete the same way as jobs
     def delete(self):
         """Delete the experiment and all associated jobs."""
         # Delete all associated jobs
-        all_jobs = self._get_all_jobs()
-        for job_id in all_jobs:
-            try:
-                job = Job.get(job_id)
-                job_dir = job.get_dir()
-                if os.path.exists(job_dir):
-                    shutil.rmtree(job_dir)
-            except Exception:
-                pass  # Job might not exist
-        
+        self.delete_all_jobs()
         # Delete the experiment directory
         exp_dir = self.get_dir()
         if os.path.exists(exp_dir):
             shutil.rmtree(exp_dir)
+
+    def delete_all_jobs(self):
+        """Delete all jobs associated with this experiment."""
+        all_jobs = self._get_all_jobs()
+        for job_id in all_jobs:
+            try:
+                job = Job.get(job_id)
+                job.delete()
+            except Exception:
+                pass  # Job might not exist

@@ -99,7 +99,7 @@ class BaseLabResource(ABC):
             pass
         return self._get_json_file()
 
-    def _get_json_data(self):
+    def get_json_data(self):
         """
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
@@ -140,12 +140,12 @@ class BaseLabResource(ABC):
 
     def _get_json_data_field(self, key, default=""):
         """Gets the value of a single top-level field in a JSON object"""
-        json_data = self._get_json_data()
+        json_data = self.get_json_data()
         return json_data.get(key, default)
 
     def _update_json_data_field(self, key: str, value):
         """Sets the value of a single top-level field in a JSON object"""
-        json_data = self._get_json_data()
+        json_data = self.get_json_data()
         json_data[key] = value
         self._set_json_data(json_data)
 
