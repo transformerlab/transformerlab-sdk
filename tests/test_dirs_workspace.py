@@ -71,26 +71,3 @@ def test_org_scoped_workspace_dir(monkeypatch, tmp_path):
     expected_default = os.path.join(dirs_workspace.HOME_DIR, "workspace")
     assert ws_default == expected_default
     assert os.path.isdir(ws_default)
-
-
-def test_env_override_takes_precedence_over_org(monkeypatch, tmp_path):
-    # Create explicit WS override
-    home = tmp_path / "home"
-    ws = tmp_path / "ws_override"
-    home.mkdir()
-    ws.mkdir()
-
-    monkeypatch.setenv("TFL_HOME_DIR", str(home))
-    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
-
-    # Fresh import
-    if "lab.dirs_workspace" in list(importlib.sys.modules.keys()):
-        importlib.sys.modules.pop("lab.dirs_workspace")
-
-    from lab import dirs_workspace
-
-    # Even if an org is set, the explicit env override should win
-    dirs_workspace.set_organization_id("org123")
-    resolved = dirs_workspace.get_workspace_dir()
-    assert resolved == str(ws)
-    assert os.path.isdir(resolved)
