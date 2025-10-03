@@ -5,7 +5,7 @@ import importlib
 
 def test_baselabresource_create_get(tmp_path, monkeypatch):
     # Create a simple subclass inline by importing Job which uses BaseLabResource
-    for mod in ["lab.job", "lab.dirs", "lab.dirs_workspace"]:
+    for mod in ["lab.job", "lab.dirs"]:
         if mod in importlib.sys.modules:
             importlib.sys.modules.pop(mod)
 
@@ -28,7 +28,7 @@ def test_baselabresource_create_get(tmp_path, monkeypatch):
 
 
 def test_job_default_json_and_updates(tmp_path, monkeypatch):
-    for mod in ["lab.job", "lab.dirs", "lab.dirs_workspace"]:
+    for mod in ["lab.job", "lab.dirs"]:
         if mod in importlib.sys.modules:
             importlib.sys.modules.pop(mod)
 
@@ -61,7 +61,7 @@ def test_job_default_json_and_updates(tmp_path, monkeypatch):
 
 
 def test_job_data_field_updates(tmp_path, monkeypatch):
-    for mod in ["lab.job", "lab.dirs", "lab.dirs_workspace"]:
+    for mod in ["lab.job", "lab.dirs"]:
         if mod in importlib.sys.modules:
             importlib.sys.modules.pop(mod)
 
