@@ -22,7 +22,7 @@ class Model(BaseLabResource):
 
     def set_metadata(self, *, model_id: str | None = None, name: str | None = None, json_data: dict | None = None):
         """Set model metadata, similar to dataset service"""
-        data = self._get_json_data()
+        data = self.get_json_data()
         if model_id is not None:
             data["model_id"] = model_id
         if name is not None:
@@ -38,7 +38,7 @@ class Model(BaseLabResource):
 
     def get_metadata(self):
         """Get model metadata"""
-        return self._get_json_data()
+        return self.get_json_data()
 
     @staticmethod
     def list_all():
