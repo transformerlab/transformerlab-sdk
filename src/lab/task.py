@@ -32,7 +32,7 @@ class Task(BaseLabResource):
                      plugin: str | None = None, outputs: dict | None = None,
                      experiment_id: int | None = None):
         """Set task metadata"""
-        data = self._get_json_data()
+        data = self.get_json_data()
         if name is not None:
             data["name"] = name
         if type is not None:
@@ -55,7 +55,7 @@ class Task(BaseLabResource):
 
     def get_metadata(self):
         """Get task metadata"""
-        return self._get_json_data()
+        return self.get_json_data()
 
     @staticmethod
     def list_all():
