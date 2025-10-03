@@ -3,7 +3,7 @@ import importlib
 
 
 def test_model_get_dir(tmp_path, monkeypatch):
-    for mod in ["lab.model", "lab.dirs", "lab.dirs_workspace"]:
+    for mod in ["lab.model", "lab.dirs"]:
         if mod in importlib.sys.modules:
             importlib.sys.modules.pop(mod)
 

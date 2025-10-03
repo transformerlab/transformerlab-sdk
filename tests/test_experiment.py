@@ -4,7 +4,7 @@ import importlib
 
 
 def _fresh(monkeypatch):
-    for mod in ["lab.experiment", "lab.job", "lab.dirs", "lab.dirs_workspace"]:
+    for mod in ["lab.experiment", "lab.job", "lab.dirs"]:
         if mod in importlib.sys.modules:
             importlib.sys.modules.pop(mod)
 

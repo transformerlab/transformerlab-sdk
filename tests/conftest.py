@@ -18,7 +18,7 @@ def _isolate_imports_and_home(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
 
     # Clear lab modules so module-level env evaluation re-runs every test
-    for mod in ["lab", "lab.dirs_workspace", "lab.dirs"]:
+    for mod in ["lab", "lab.dirs"]:
         if mod in sys.modules:
             sys.modules.pop(mod)
 
