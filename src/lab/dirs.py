@@ -17,7 +17,9 @@ else:
     print(f"Using default home directory: {HOME_DIR}")
 
 # Context var for organization id (set by host app/session)
-_current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("current_org_id", default=None)
+_current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "current_org_id", default=None
+)
 
 
 def set_organization_id(organization_id: str | None) -> None:
@@ -70,19 +72,22 @@ os.environ["LOGDIR"] = os.getenv(
     "TFL_HOME_DIR", os.path.join(str(os.path.expanduser("~")), ".transformerlab")
 )
 
+
 def get_experiments_dir() -> str:
     path = os.path.join(get_workspace_dir(), "experiments")
     os.makedirs(name=path, exist_ok=True)
     return path
+
 
 def get_jobs_dir() -> str:
     path = os.path.join(get_workspace_dir(), "jobs")
     os.makedirs(name=path, exist_ok=True)
     return path
 
+
 def get_global_log_path() -> str:
-    # MTMIGRATE: This doesn't work in multi-tenant world
     return os.path.join(get_workspace_dir(), "transformerlab.log")
+
 
 def get_logs_dir() -> str:
     path = os.path.join(HOME_DIR, "logs")
@@ -110,10 +115,12 @@ def get_models_dir() -> str:
     os.makedirs(name=path, exist_ok=True)
     return path
 
+
 def get_datasets_dir() -> str:
     path = os.path.join(get_workspace_dir(), "datasets")
     os.makedirs(name=path, exist_ok=True)
     return path
+
 
 def get_tasks_dir() -> str:
     path = os.path.join(get_workspace_dir(), "tasks")
@@ -136,20 +143,24 @@ def get_prompt_templates_dir() -> str:
     os.makedirs(name=path, exist_ok=True)
     return path
 
+
 def get_tools_dir() -> str:
     path = os.path.join(get_workspace_dir(), "tools")
     os.makedirs(name=path, exist_ok=True)
     return path
+
 
 def get_batched_prompts_dir() -> str:
     path = os.path.join(get_workspace_dir(), "batched_prompts")
     os.makedirs(name=path, exist_ok=True)
     return path
 
+
 def get_galleries_cache_dir() -> str:
     path = os.path.join(get_workspace_dir(), "galleries")
     os.makedirs(name=path, exist_ok=True)
     return path
+
 
 # Evals output file:
 # TODO: These should probably be in the plugin subclasses
