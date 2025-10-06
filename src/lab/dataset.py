@@ -1,7 +1,7 @@
 import os
 from werkzeug.utils import secure_filename
 
-from .dirs import DATASETS_DIR
+from .dirs import get_datasets_dir
 from .labresource import BaseLabResource
 
 
@@ -9,7 +9,7 @@ class Dataset(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         dataset_id_safe = secure_filename(str(self.id))
-        return os.path.join(DATASETS_DIR, dataset_id_safe)
+        return os.path.join(get_datasets_dir(), dataset_id_safe)
 
     def _default_json(self):
         # Default metadata modeled after API dataset table fields
@@ -44,10 +44,11 @@ class Dataset(BaseLabResource):
     @staticmethod
     def list_all():
         results = []
-        if not os.path.isdir(DATASETS_DIR):
+        datasets_dir = get_datasets_dir()
+        if not os.path.isdir(datasets_dir):
             return results
-        for entry in os.listdir(DATASETS_DIR):
-            full = os.path.join(DATASETS_DIR, entry)
+        for entry in os.listdir(datasets_dir):
+            full = os.path.join(datasets_dir, entry)
             if not os.path.isdir(full):
                 continue
             # Attempt to read index.json (or latest snapshot)

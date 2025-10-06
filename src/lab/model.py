@@ -2,7 +2,7 @@ import os
 import json
 from werkzeug.utils import secure_filename
 
-from .dirs import MODELS_DIR
+from .dirs import get_models_dir
 from .labresource import BaseLabResource
 
 
@@ -10,7 +10,7 @@ class Model(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         model_id_safe = secure_filename(str(self.id))
-        return os.path.join(MODELS_DIR, model_id_safe)
+        return os.path.join(get_models_dir(), model_id_safe)
 
     def _default_json(self):
         # Default metadata modeled after API model table fields
@@ -44,10 +44,11 @@ class Model(BaseLabResource):
     def list_all():
         """List all models in the filesystem, similar to dataset service"""
         results = []
-        if not os.path.isdir(MODELS_DIR):
+        models_dir = get_models_dir()
+        if not os.path.isdir(models_dir):
             return results
-        for entry in os.listdir(MODELS_DIR):
-            full = os.path.join(MODELS_DIR, entry)
+        for entry in os.listdir(models_dir):
+            full = os.path.join(models_dir, entry)
             if not os.path.isdir(full):
                 continue
             # Attempt to read index.json (or latest snapshot)

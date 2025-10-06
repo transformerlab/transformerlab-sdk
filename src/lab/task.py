@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
-from .dirs import TASKS_DIR
+from .dirs import get_tasks_dir
 from .labresource import BaseLabResource
 
 
@@ -10,7 +10,7 @@ class Task(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         task_id_safe = secure_filename(str(self.id))
-        return os.path.join(TASKS_DIR, task_id_safe)
+        return os.path.join(get_tasks_dir(), task_id_safe)
 
     def _default_json(self):
         # Default metadata modeled after API tasks table fields
@@ -61,10 +61,11 @@ class Task(BaseLabResource):
     def list_all():
         """List all tasks in the filesystem"""
         results = []
-        if not os.path.isdir(TASKS_DIR):
+        tasks_dir = get_tasks_dir()
+        if not os.path.isdir(tasks_dir):
             return results
-        for entry in os.listdir(TASKS_DIR):
-            full = os.path.join(TASKS_DIR, entry)
+        for entry in os.listdir(tasks_dir):
+            full = os.path.join(tasks_dir, entry)
             if not os.path.isdir(full):
                 continue
             # Attempt to read index.json (or latest snapshot)
@@ -108,10 +109,11 @@ class Task(BaseLabResource):
     @staticmethod
     def delete_all():
         """Delete all tasks"""
-        if not os.path.isdir(TASKS_DIR):
+        tasks_dir = get_tasks_dir()
+        if not os.path.isdir(tasks_dir):
             return
-        for entry in os.listdir(TASKS_DIR):
-            full = os.path.join(TASKS_DIR, entry)
+        for entry in os.listdir(tasks_dir):
+            full = os.path.join(tasks_dir, entry)
             if os.path.isdir(full):
                 import shutil
                 shutil.rmtree(full)
