@@ -179,9 +179,10 @@ class Job(BaseLabResource):
         Count how many jobs are currently running.
         """
         count = 0
-        if os.path.exists(dirs.JOBS_DIR):
-            for entry in os.listdir(dirs.JOBS_DIR):
-                job_path = os.path.join(dirs.JOBS_DIR, entry)
+        jobs_dir = dirs.get_jobs_dir()
+        if os.path.exists(jobs_dir):
+            for entry in os.listdir(jobs_dir):
+                job_path = os.path.join(jobs_dir, entry)
                 if os.path.isdir(job_path):
                     try:
                         job = cls.get(entry)
@@ -199,9 +200,10 @@ class Job(BaseLabResource):
         Returns Job data dict or None if no queued jobs.
         """
         queued_jobs = []
-        if os.path.exists(dirs.JOBS_DIR):
-            for entry in os.listdir(dirs.JOBS_DIR):
-                job_path = os.path.join(dirs.JOBS_DIR, entry)
+        jobs_dir = dirs.get_jobs_dir()
+        if os.path.exists(jobs_dir):
+            for entry in os.listdir(jobs_dir):
+                job_path = os.path.join(jobs_dir, entry)
                 if os.path.isdir(job_path):
                     try:
                         job = cls.get(entry)
