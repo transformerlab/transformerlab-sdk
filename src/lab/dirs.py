@@ -80,13 +80,14 @@ def get_jobs_dir() -> str:
     os.makedirs(name=path, exist_ok=True)
     return path
 
-# GLOBAL_LOG_PATH
-# MTMIGRATE: This doesn't work in multi-tenant world
-GLOBAL_LOG_PATH = os.path.join(get_workspace_dir(), "transformerlab.log")
+def get_global_log_path() -> str:
+    # MTMIGRATE: This doesn't work in multi-tenant world
+    return os.path.join(get_workspace_dir(), "transformerlab.log")
 
-# OTHER LOGS DIR:
-LOGS_DIR = os.path.join(HOME_DIR, "logs")
-os.makedirs(name=LOGS_DIR, exist_ok=True)
+def get_logs_dir() -> str:
+    path = os.path.join(HOME_DIR, "logs")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
 
 # TODO: Move this to Experiment
@@ -95,47 +96,60 @@ def experiment_dir_by_name(experiment_name: str) -> str:
     return os.path.join(experiments_dir, experiment_name)
 
 
-PLUGIN_DIR = os.path.join(get_workspace_dir(), "plugins")
+def get_plugin_dir() -> str:
+    return os.path.join(get_workspace_dir(), "plugins")
 
 
 def plugin_dir_by_name(plugin_name: str) -> str:
     plugin_name = secure_filename(plugin_name)
-    return os.path.join(PLUGIN_DIR, plugin_name)
+    return os.path.join(get_plugin_dir(), plugin_name)
 
 
-MODELS_DIR = os.path.join(get_workspace_dir(), "models")
-os.makedirs(name=MODELS_DIR, exist_ok=True)
+def get_models_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "models")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
-DATASETS_DIR = os.path.join(get_workspace_dir(), "datasets")
-os.makedirs(name=DATASETS_DIR, exist_ok=True)
+def get_datasets_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "datasets")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
-# TASKS_DIR
-TASKS_DIR = os.path.join(WORKSPACE_DIR, "tasks")
-os.makedirs(name=TASKS_DIR, exist_ok=True)
+def get_tasks_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "tasks")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
 
 def dataset_dir_by_id(dataset_id: str) -> str:
-    return os.path.join(DATASETS_DIR, dataset_id)
+    return os.path.join(get_datasets_dir(), dataset_id)
 
 
-TEMP_DIR = os.path.join(get_workspace_dir(), "temp")
-os.makedirs(name=TEMP_DIR, exist_ok=True)
+def get_temp_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "temp")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
 
-# Prompt Templates Dir:
-PROMPT_TEMPLATES_DIR = os.path.join(get_workspace_dir(), "prompt_templates")
-os.makedirs(name=PROMPT_TEMPLATES_DIR, exist_ok=True)
+def get_prompt_templates_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "prompt_templates")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
-# Tools Dir:
-TOOLS_DIR = os.path.join(get_workspace_dir(), "tools")
-os.makedirs(name=TOOLS_DIR, exist_ok=True)
+def get_tools_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "tools")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
-# Batched Prompts Dir:
-BATCHED_PROMPTS_DIR = os.path.join(get_workspace_dir(), "batched_prompts")
-os.makedirs(name=BATCHED_PROMPTS_DIR, exist_ok=True)
+def get_batched_prompts_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "batched_prompts")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
-GALLERIES_CACHE_DIR = os.path.join(get_workspace_dir(), "galleries")
-os.makedirs(name=GALLERIES_CACHE_DIR, exist_ok=True)
+def get_galleries_cache_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "galleries")
+    os.makedirs(name=path, exist_ok=True)
+    return path
 
 # Evals output file:
 # TODO: These should probably be in the plugin subclasses
