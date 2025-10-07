@@ -133,6 +133,12 @@ def get_tasks_dir() -> str:
     return path
 
 
+def get_config_dir() -> str:
+    path = os.path.join(get_workspace_dir(), "config")
+    os.makedirs(name=path, exist_ok=True)
+    return path
+
+
 def dataset_dir_by_id(dataset_id: str) -> str:
     return os.path.join(get_datasets_dir(), dataset_id)
 
