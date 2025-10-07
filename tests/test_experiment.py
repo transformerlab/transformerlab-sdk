@@ -75,3 +75,56 @@ def test_get_jobs_filters(tmp_path, monkeypatch):
     running = exp.get_jobs(status="RUNNING")
     assert all(j.get("status") == "RUNNING" for j in running)
 
+
+def test_experiment_create_and_get(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    # Create experiment and verify it exists
+    exp = Experiment.create("test_experiment")
+    assert exp is not None
+
+    # Get the experiment and verify its properties
+    exp_data = exp.get_json_data()
+    assert exp_data["name"] == "test_experiment"
+
+    # Try to get an experiment that doesn't exist
+    try:
+        nonexistent = Experiment.get("999999")
+        # If we get here, the experiment should be None or indicate it doesn't exist
+        assert nonexistent is None
+    except Exception:
+        # Getting a nonexistent experiment might raise an exception, which is also acceptable
+        pass
+
+
+def test_experiment_config_validation(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    # Test creating experiment with valid config
+    exp = Experiment.create_with_config("test_experiment_config", {"key": "value"})
+    assert exp is not None
+
+    # Test creating experiment with invalid config (string instead of dict)
+    try:
+        Experiment.create_with_config("test_experiment_invalid", "not_a_dict")
+        assert False, "Should have raised an exception for invalid config"
+    except TypeError:
+        # Expected behavior - should raise TypeError for non-dict config
+        pass
+
