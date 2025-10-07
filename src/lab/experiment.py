@@ -45,10 +45,10 @@ class Experiment(BaseLabResource):
             except json.JSONDecodeError:
                 current_config = {}
         current_config[key] = value
-        self._update_json_data_field("config", current_config)
-
+        self._update_json_data_field("config", json.dumps(current_config))
+    
     @classmethod
-    def create_with_config(cls, name: str, config: dict) -> "Experiment":
+    def create_with_config(cls, name: str, config: dict) -> 'Experiment':
         """Create an experiment with config."""
         # Convert string to dict if it's valid JSON, otherwise raise TypeError
         if isinstance(config, str):
@@ -59,7 +59,7 @@ class Experiment(BaseLabResource):
         elif not isinstance(config, dict):
             raise TypeError("config must be a dict")
         exp = cls.create(name)
-        exp._update_json_data_field("config", config)
+        exp._update_json_data_field("config", json.dumps(config))
         return exp
 
     def update_config(self, config: dict):
@@ -72,7 +72,7 @@ class Experiment(BaseLabResource):
             except json.JSONDecodeError:
                 current_config = {}
         current_config.update(config)
-        self._update_json_data_field("config", current_config)
+        self._update_json_data_field("config", json.dumps(current_config))
 
     @classmethod
     def get_all(cls):
@@ -249,7 +249,7 @@ class Experiment(BaseLabResource):
                 jobs[type].append(job_id)
             else:
                 jobs[type] = [job_id]
-
+    
     # TODO: For experiments, delete the same way as jobs
     def delete(self):
         """Delete the experiment and all associated jobs."""
