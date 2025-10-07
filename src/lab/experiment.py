@@ -50,6 +50,14 @@ class Experiment(BaseLabResource):
     @classmethod
     def create_with_config(cls, name: str, config: dict) -> 'Experiment':
         """Create an experiment with config."""
+        # Convert string to dict if it's valid JSON, otherwise raise TypeError
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except json.JSONDecodeError:
+                raise TypeError("config must be a dict or valid JSON string")
+        elif not isinstance(config, dict):
+            raise TypeError("config must be a dict")
         exp = cls.create(name)
         exp._update_json_data_field("config", json.dumps(config))
         return exp
