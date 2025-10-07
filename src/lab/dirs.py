@@ -27,6 +27,11 @@ def set_organization_id(organization_id: str | None) -> None:
 
 
 def get_workspace_dir() -> str:
+    # Remote SkyPilot workspace override (highest precedence)
+    # Only return container workspace path when value is exactly "true"
+    if os.getenv("_TFL_REMOTE_SKYPILOT_WORKSPACE") == "true":
+        return "/workspace"
+
     # Explicit override wins
     if "TFL_WORKSPACE_DIR" in os.environ:
         value = os.environ["TFL_WORKSPACE_DIR"]
