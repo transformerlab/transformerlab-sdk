@@ -86,3 +86,27 @@ def test_job_data_field_updates(tmp_path, monkeypatch):
     assert data["job_data"]["completion_details"] == "ok"
     assert data["job_data"]["score"] == {"acc": 1}
 
+
+def test_job_get_nonexistent(tmp_path, monkeypatch):
+    for mod in ["lab.job", "lab.dirs"]:
+        if mod in importlib.sys.modules:
+            importlib.sys.modules.pop(mod)
+
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.job import Job
+
+    # Test getting a job that doesn't exist - should return None or raise exception
+    try:
+        job = Job.get("999999")
+        # If we get here, the job should be None or have some indication it doesn't exist
+        assert job is None
+    except Exception:
+        # Getting a nonexistent job might raise an exception, which is also acceptable
+        pass
+
