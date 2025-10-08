@@ -81,30 +81,16 @@ class BaseLabResource(ABC):
         """Get json file containing metadata for this resource."""
         return os.path.join(self.get_dir(), "index.json")
 
-    def _get_latest_snapshot_file(self):
-        """
-        Return the path to the latest snapshot json file if available.
-        Falls back to the canonical index.json if not available.
-        """
-        resource_dir = self.get_dir()
-        latest_file = os.path.join(resource_dir, "latest.txt")
-        try:
-            with open(latest_file, "r", encoding="utf-8") as lf:
-                latest_name = lf.read().strip()
-            if latest_name:
-                candidate = os.path.join(resource_dir, latest_name)
-                if os.path.isfile(candidate):
-                    return candidate
-        except FileNotFoundError:
-            pass
-        return self._get_json_file()
 
     def get_json_data(self):
         """
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
         """
-        json_file = self._get_latest_snapshot_file()
+        # Migrate from timestamped files to single index.json if needed
+        self._migrate_to_single_index()
+        
+        json_file = self._get_json_file()
 
         # Try opening this file location and parsing the json inside
         # On any error return an empty dict
@@ -126,17 +112,13 @@ class BaseLabResource(ABC):
         if not isinstance(json_data, dict):
             raise TypeError("json_data must be a dict")
 
-        # Create a new timestamped snapshot file and update latest.txt
-        resource_dir = self.get_dir()
-        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
-        version_filename = f"index-{timestamp}.json"
-        version_path = os.path.join(resource_dir, version_filename)
-        with open(version_path, "w", encoding="utf-8") as vf:
-            json.dump(json_data, vf, ensure_ascii=False)
+        # Migrate from timestamped files to single index.json if needed
+        self._migrate_to_single_index()
 
-        latest_file = os.path.join(resource_dir, "latest.txt")
-        with open(latest_file, "w", encoding="utf-8") as lf:
-            lf.write(version_filename)
+        # Write directly to index.json
+        json_file = self._get_json_file()
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(json_data, f, ensure_ascii=False)
 
     def _get_json_data_field(self, key, default=""):
         """Gets the value of a single top-level field in a JSON object"""
@@ -148,6 +130,82 @@ class BaseLabResource(ABC):
         json_data = self.get_json_data()
         json_data[key] = value
         self._set_json_data(json_data)
+
+    def _migrate_to_single_index(self):
+        """
+        Migrate from timestamped index files to a single index.json file.
+        This method is idempotent and safe to call multiple times.
+        """
+        resource_dir = self.get_dir()
+        if not os.path.exists(resource_dir):
+            return
+
+        # Check if we already have a single index.json file
+        index_file = self._get_json_file()
+        if os.path.exists(index_file):
+            # Check if there are any timestamped files to migrate
+            has_timestamped_files = False
+            for filename in os.listdir(resource_dir):
+                if filename.startswith("index-") and filename.endswith(".json"):
+                    has_timestamped_files = True
+                    break
+            
+            if not has_timestamped_files:
+                return  # Already migrated
+
+        # Find the most recent timestamped file
+        latest_file = None
+        latest_timestamp = None
+        
+        # First, try to use latest.txt if it exists
+        latest_txt_path = os.path.join(resource_dir, "latest.txt")
+        if os.path.exists(latest_txt_path):
+            try:
+                with open(latest_txt_path, "r", encoding="utf-8") as lf:
+                    latest_filename = lf.read().strip()
+                    if latest_filename:
+                        candidate_path = os.path.join(resource_dir, latest_filename)
+                        if os.path.isfile(candidate_path):
+                            latest_file = candidate_path
+            except Exception:
+                pass
+
+        # If no latest.txt or file doesn't exist, find the most recent by timestamp
+        if not latest_file:
+            for filename in os.listdir(resource_dir):
+                if filename.startswith("index-") and filename.endswith(".json"):
+                    try:
+                        # Extract timestamp from filename
+                        timestamp_str = filename[6:-5]  # Remove "index-" and ".json"
+                        timestamp = datetime.strptime(timestamp_str, "%Y%m%dT%H%M%S%fZ")
+                        if latest_timestamp is None or timestamp > latest_timestamp:
+                            latest_timestamp = timestamp
+                            latest_file = os.path.join(resource_dir, filename)
+                    except ValueError:
+                        # Skip files with invalid timestamp format
+                        continue
+
+        # If we found a latest file, migrate it to index.json
+        if latest_file and os.path.exists(latest_file):
+            try:
+                with open(latest_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                
+                # Write to index.json
+                with open(index_file, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False)
+                
+                # Clean up timestamped files and latest.txt
+                for filename in os.listdir(resource_dir):
+                    if filename.startswith("index-") and filename.endswith(".json"):
+                        os.remove(os.path.join(resource_dir, filename))
+                
+                if os.path.exists(latest_txt_path):
+                    os.remove(latest_txt_path)
+                    
+            except Exception:
+                # If migration fails, leave everything as is
+                pass
 
     def delete(self):
         """
