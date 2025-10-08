@@ -24,7 +24,7 @@ class Experiment(BaseLabResource):
         return os.path.join(get_experiments_dir(), experiment_id_safe)
 
     def _default_json(self):
-        return {"name": self.id, "config": {}}
+        return {"name": self.id, "id": self.id, "config": {}}
 
     def _initialize(self):
         super()._initialize()
