@@ -38,23 +38,36 @@ class Experiment(BaseLabResource):
     def update_config_field(self, key, value):
         """Update a single key in config."""
         current_config = self._get_json_data_field("config", {})
+        if isinstance(current_config, str):
+            try:
+                current_config = json.loads(current_config)
+            except json.JSONDecodeError:
+                current_config = {}
         current_config[key] = value
         self._update_json_data_field("config", current_config)
     
     @classmethod
     def create_with_config(cls, name: str, config: dict) -> 'Experiment':
         """Create an experiment with config."""
-        if not isinstance(config, dict):
-            raise TypeError("Config must be a dictionary")
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except json.JSONDecodeError:
+                raise TypeError("config must be a dict or valid JSON string")
+        elif not isinstance(config, dict):
+            raise TypeError("config must be a dict")
         exp = cls.create(name)
         exp._update_json_data_field("config", config)
         return exp
 
     def update_config(self, config: dict):
         """Update entire config."""
-        if not isinstance(config, dict):
-            raise TypeError("Config must be a dictionary")
         current_config = self._get_json_data_field("config", {})
+        if isinstance(current_config, str):
+            try:
+                current_config = json.loads(current_config)
+            except json.JSONDecodeError:
+                current_config = {}
         current_config.update(config)
         self._update_json_data_field("config", current_config)
 
