@@ -17,6 +17,9 @@ class Experiment(BaseLabResource):
 
     def __init__(self, experiment_id):
         self.id = experiment_id
+        # Auto-initialize if experiment doesn't exist
+        if not os.path.exists(self.get_dir()) or not os.path.exists(self._get_json_file()):
+            self._initialize()
 
     def get_dir(self):
         """Abstract method on BaseLabResource"""
