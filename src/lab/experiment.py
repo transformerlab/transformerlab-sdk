@@ -15,10 +15,10 @@ class Experiment(BaseLabResource):
 
     DEFAULT_JOBS_INDEX = {"TRAIN": []}
 
-    def __init__(self, experiment_id):
+    def __init__(self, experiment_id, create_new=False):
         self.id = experiment_id
-        # Auto-initialize if experiment doesn't exist
-        if not os.path.exists(self.get_dir()) or not os.path.exists(self._get_json_file()):
+        # Auto-initialize if create_new=True and experiment doesn't exist
+        if create_new and (not os.path.exists(self.get_dir()) or not os.path.exists(self._get_json_file())):
             self._initialize()
 
     def get_dir(self):
