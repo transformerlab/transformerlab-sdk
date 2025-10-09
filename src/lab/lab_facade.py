@@ -27,7 +27,7 @@ class Lab:
         Initialize a new job under the given experiment.
         Creates the experiment structure if needed and creates a new job.
         """
-        self._experiment = Experiment(experiment_id)
+        self._experiment = Experiment(experiment_id, create_new=True)
         self._job = self._experiment.create_job()
         self._job.set_experiment(experiment_id)
         self._job.update_status("IN_PROGRESS")
