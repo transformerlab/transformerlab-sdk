@@ -31,7 +31,7 @@ class Task(BaseLabResource):
     def set_metadata(self, *, name: str | None = None, type: str | None = None, 
                      inputs: dict | None = None, config: dict | None = None,
                      plugin: str | None = None, outputs: dict | None = None,
-                     experiment_id: int | None = None, remote_task: bool | None = None):
+                     experiment_id: str | None = None, remote_task: bool | None = None):
         """Set task metadata"""
         data = self.get_json_data()
         if name is not None:
