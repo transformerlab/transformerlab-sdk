@@ -85,7 +85,8 @@ def get_experiments_dir() -> str:
 
 
 def get_jobs_dir() -> str:
-    path = os.path.join(get_workspace_dir(), "jobs")
+    workspace_dir = get_workspace_dir()
+    path = os.path.join(workspace_dir, "jobs")
     os.makedirs(name=path, exist_ok=True)
     return path
 

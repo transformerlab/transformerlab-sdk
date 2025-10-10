@@ -27,15 +27,16 @@ class Job(BaseLabResource):
         # Default location for log file
         log_path = os.path.join(self.get_dir(), f"output_{self.id}.txt")
 
-        # Then check if there is a path explicitly set in the job data
-        try:
-            job_data = self.get_job_data()
-            if isinstance(job_data, dict):
-                override_path = job_data.get("output_file_path", "")
-                if isinstance(override_path, str) and override_path.strip() != "":
-                    log_path = override_path
-        except Exception:
-            pass
+        if not os.path.exists(log_path):
+            # Then check if there is a path explicitly set in the job data
+            try:
+                job_data = self.get_job_data()
+                if isinstance(job_data, dict):
+                    override_path = job_data.get("output_file_path", "")
+                    if isinstance(override_path, str) and override_path.strip() != "":
+                        log_path = override_path
+            except Exception:
+                pass
 
         # Make sure whatever log_path we return actually exists
         # Put an empty file there if not
