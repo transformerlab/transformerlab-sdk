@@ -54,7 +54,7 @@ class Job(BaseLabResource):
             "experiment_id": "",
             "job_data": default_job_data,
             "status": "NOT_STARTED",
-            "type": "TRAIN",
+            "type": "REMOTE",
             "progress": 0,
         }
 

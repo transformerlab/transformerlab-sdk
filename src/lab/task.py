@@ -23,6 +23,7 @@ class Task(BaseLabResource):
             "plugin": "",
             "outputs": {},
             "experiment_id": None,
+            "remote_task": False,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
         }
@@ -30,7 +31,7 @@ class Task(BaseLabResource):
     def set_metadata(self, *, name: str | None = None, type: str | None = None, 
                      inputs: dict | None = None, config: dict | None = None,
                      plugin: str | None = None, outputs: dict | None = None,
-                     experiment_id: int | None = None):
+                     experiment_id: int | None = None, remote_task: bool | None = None):
         """Set task metadata"""
         data = self.get_json_data()
         if name is not None:
@@ -47,6 +48,8 @@ class Task(BaseLabResource):
             data["outputs"] = outputs
         if experiment_id is not None:
             data["experiment_id"] = experiment_id
+        if remote_task is not None:
+            data["remote_task"] = remote_task
         
         # Always update the updated_at timestamp
         data["updated_at"] = datetime.utcnow().isoformat()
