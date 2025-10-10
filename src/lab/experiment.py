@@ -15,8 +15,11 @@ class Experiment(BaseLabResource):
 
     DEFAULT_JOBS_INDEX = {"TRAIN": []}
 
-    def __init__(self, experiment_id):
+    def __init__(self, experiment_id, create_new=False):
         self.id = experiment_id
+        # Auto-initialize if create_new=True and experiment doesn't exist
+        if create_new and (not os.path.exists(self.get_dir()) or not os.path.exists(self._get_json_file())):
+            self._initialize()
 
     def get_dir(self):
         """Abstract method on BaseLabResource"""
@@ -24,7 +27,7 @@ class Experiment(BaseLabResource):
         return os.path.join(get_experiments_dir(), experiment_id_safe)
 
     def _default_json(self):
-        return {"name": self.id, "config": {}}
+        return {"name": self.id, "id": self.id, "config": {}}
 
     def _initialize(self):
         super()._initialize()
