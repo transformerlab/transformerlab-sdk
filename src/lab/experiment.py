@@ -178,38 +178,28 @@ class Experiment(BaseLabResource):
                     continue
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = os.path.join(entry_path, "index.json")
-                latest_txt = os.path.join(entry_path, "latest.txt")
                 try:
-                    with open(latest_txt, "r", encoding="utf-8") as lf:
-                        latest_name = lf.read().strip()
-                    candidate = os.path.join(entry_path, latest_name)
-                    if os.path.isfile(candidate):
-                        index_file = candidate
-                except Exception:
-                    pass
-                if not os.path.isfile(index_file):
+                    with open(index_file, "r", encoding="utf-8") as lf:
+                        data = json.load(lf)
+                except Exception as e:
+                    print(f"Error loading index.json: {e}")
                     continue
-
-                # Check the metadata to see if it belongs to this experiment
-                # Also check for a type parameter, then add to index
-                try:
-                    with open(index_file, "r") as jf:
-                        data = json.load(jf)
-                        if data.get("experiment_id", "") != self.id:
-                            continue
-                        job_type = data.get("type", "UNKNOWN")
-                        results.setdefault(job_type, []).append(entry)
-                except Exception:
+                if data.get("experiment_id", "") != self.id:
+                    print(f"Experiment ID mismatch for job {entry}: {data.get('experiment_id', '')} != {self.id}")
                     continue
+                job_type = data.get("type", "UNKNOWN")
+                results.setdefault(job_type, []).append(entry)
 
             # Write discovered index to jobs.json
             if results:
                 try:
                     with open(self._jobs_json_file(), "w") as out:
                         json.dump(results, out, indent=4)
-                except Exception:
+                except Exception as e:
+                    print(f"Error writing jobs index: {e}")
                     pass
-        except Exception:
+        except Exception as e:
+            print(f"Error rebuilding jobs index: {e}")
             pass
         print(results)
 
