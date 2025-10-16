@@ -168,7 +168,6 @@ class Experiment(BaseLabResource):
         return os.path.join(self.get_dir(), "jobs.json")
 
     def rebuild_jobs_index(self):
-        print("REBUiLDING JOB INDEX")
         results = {}
         try:
             # Iterate through jobs directories and check for index.json
@@ -185,7 +184,6 @@ class Experiment(BaseLabResource):
                     print(f"Error loading index.json: {e}")
                     continue
                 if data.get("experiment_id", "") != self.id:
-                    print(f"Experiment ID mismatch for job {entry}: {data.get('experiment_id', '')} != {self.id}")
                     continue
                 job_type = data.get("type", "UNKNOWN")
                 results.setdefault(job_type, []).append(entry)
@@ -201,7 +199,6 @@ class Experiment(BaseLabResource):
         except Exception as e:
             print(f"Error rebuilding jobs index: {e}")
             pass
-        print(results)
 
     def _get_all_jobs(self):
         """
