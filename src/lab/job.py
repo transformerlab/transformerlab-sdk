@@ -253,25 +253,20 @@ class Job(BaseLabResource):
         Returns list of checkpoint paths from job_data or scans directory.
         """
         try:
-            job_data = self.get_job_data()
-            if isinstance(job_data, dict) and "checkpoints" in job_data:
-                checkpoints = job_data["checkpoints"]
-                if isinstance(checkpoints, list):
-                    return checkpoints
+            # Scan the checkpoints directory
+            checkpoints_dir = self.get_checkpoints_dir()
+            if os.path.exists(checkpoints_dir):
+                checkpoint_files = []
+                for item in os.listdir(checkpoints_dir):
+                    item_path = os.path.join(checkpoints_dir, item)
+                    if os.path.isfile(item_path):
+                        checkpoint_files.append(item_path)
+                return sorted(checkpoint_files)
+            
+            return []
         except Exception:
-            pass
-        
-        # Fallback: scan the checkpoints directory
-        checkpoints_dir = self.get_checkpoints_dir()
-        if os.path.exists(checkpoints_dir):
-            checkpoint_files = []
-            for item in os.listdir(checkpoints_dir):
-                item_path = os.path.join(checkpoints_dir, item)
-                if os.path.isfile(item_path):
-                    checkpoint_files.append(item_path)
-            return sorted(checkpoint_files)
-        
-        return []
+            return []
+    
     
     def get_artifact_paths(self):
         """
@@ -279,24 +274,17 @@ class Job(BaseLabResource):
         Returns list of artifact paths from job_data or scans directory.
         """
         try:
-            job_data = self.get_job_data()
-            if isinstance(job_data, dict) and "artifacts" in job_data:
-                artifacts = job_data["artifacts"]
-                if isinstance(artifacts, list):
-                    return artifacts
+            # Scan the artifacts directory
+            artifacts_dir = self.get_artifacts_dir()
+            if os.path.exists(artifacts_dir):
+                artifact_files = []
+                for item in os.listdir(artifacts_dir):
+                    item_path = os.path.join(artifacts_dir, item)
+                    if os.path.isfile(item_path):
+                        artifact_files.append(item_path)
+                return sorted(artifact_files)
         except Exception:
-            pass
-        
-        # Fallback: scan the artifacts directory
-        artifacts_dir = self.get_artifacts_dir()
-        if os.path.exists(artifacts_dir):
-            artifact_files = []
-            for item in os.listdir(artifacts_dir):
-                item_path = os.path.join(artifacts_dir, item)
-                if os.path.isfile(item_path):
-                    artifact_files.append(item_path)
-            return sorted(artifact_files)
-        
+            return []
         return []
 
     def delete(self):
