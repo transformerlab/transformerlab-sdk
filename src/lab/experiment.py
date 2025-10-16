@@ -150,6 +150,10 @@ class Experiment(BaseLabResource):
             if status and (job_json.get("status", "") != status):
                 continue
 
+            # Exclude DELETED jobs by default (unless explicitly requested)
+            if not status and job_json.get("status", "") == "DELETED":
+                continue
+
             # If it passed filters then add as long as it has job_data
             if "job_data" in job_json:
                 results.append(job_json)
