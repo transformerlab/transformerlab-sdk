@@ -222,7 +222,7 @@ class Lab:
     def promote_model(self, model_name: str, global_model_id: str) -> str:
         """
         Promote a model from the job's models directory to the global models directory.
-        Creates a symlink to avoid duplicating large model files.
+        Creates a hardlink to avoid duplicating large model files.
         """
         self._ensure_initialized()
         job_id = self._job.id  # type: ignore[union-attr]
@@ -231,10 +231,10 @@ class Lab:
         global_models_dir = dirs.get_models_dir()
         global_model_path = os.path.join(global_models_dir, global_model_id)
         if os.path.exists(job_model_path):
-            # Create symlink instead of copying to save space
+            # Create hardlink instead of copying to save space
             os.makedirs(global_models_dir, exist_ok=True)
-            os.symlink(job_model_path, global_model_path)
-            self.log(f"Model symlinked to global: {global_model_path} -> {job_model_path}")
+            os.link(job_model_path, global_model_path)
+            self.log(f"Model hardlinked to global: {global_model_path} -> {job_model_path}")
             return global_model_path
         else:
             raise FileNotFoundError(f"Model {model_name} not found in job models")
