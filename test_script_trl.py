@@ -9,6 +9,7 @@ from datetime import datetime
 from time import sleep
 
 from lab import lab
+from numpy import False_
 
 
 def train_with_trl(quick_test=True):
@@ -273,12 +274,12 @@ if __name__ == "__main__":
     import sys
     
     # Check if user wants full training or quick test
-    quick_test = True  # Default to quick test
-    if len(sys.argv) > 1 and sys.argv[1] == "--full-training":
-        quick_test = False
-        print("🚀 Running full training mode...")
+    quick_test = False # Default to quick test
+    if len(sys.argv) > 1 and sys.argv[1] == "--quick-training":
+        quick_test = True
+        print("🚀 Running quick test mode...")
     else:
-        print("🚀 Running quick test mode (use --full-training for actual training)...")
+        print("🚀 Running full training mode (use --quick-training for quick test)...")
     
     result = train_with_trl(quick_test=quick_test)
     print("Training result:", result)
