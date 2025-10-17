@@ -39,7 +39,6 @@ def train_with_trl(quick_test=True):
             "gradient_accumulation_steps": 1,
             "warmup_ratio": 0.03,
             "weight_decay": 0.01,
-            "max_seq_length": 512,
             "logging_steps": 1,
             "save_steps": 100 if not quick_test else 1,
             "eval_steps": 100 if not quick_test else 1,
@@ -132,15 +131,15 @@ def train_with_trl(quick_test=True):
                 learning_rate=training_config["_config"]["lr"],
                 warmup_ratio=training_config["_config"]["warmup_ratio"],
                 weight_decay=training_config["_config"]["weight_decay"],
-                max_seq_length=training_config["_config"]["max_seq_length"],
                 logging_steps=training_config["_config"]["logging_steps"],
                 save_steps=training_config["_config"]["save_steps"],
                 eval_steps=training_config["_config"]["eval_steps"],
-                report_to=training_config["_config"]["report_to"],
+                report_to=["wandb"],
                 run_name=f"trl-test-{lab.job.id}",
                 logging_dir=f"{training_config['output_dir']}/logs",
                 remove_unused_columns=False,
                 push_to_hub=False,
+                dataset_text_field="text",  # Move dataset_text_field to SFTConfig
             )
             
             # Create SFTTrainer - this will initialize wandb if report_to includes "wandb"
@@ -148,8 +147,7 @@ def train_with_trl(quick_test=True):
                 model=model,
                 args=training_args,
                 train_dataset=dataset["train"],
-                tokenizer=tokenizer,
-                dataset_text_field="text",
+                processing_class=tokenizer,
             )
             
             lab.log("✅ SFTTrainer created - wandb should be initialized automatically!")
