@@ -15,8 +15,11 @@ class Experiment(BaseLabResource):
 
     DEFAULT_JOBS_INDEX = {"TRAIN": []}
 
-    def __init__(self, experiment_id):
+    def __init__(self, experiment_id, create_new=False):
         self.id = experiment_id
+        # Auto-initialize if create_new=True and experiment doesn't exist
+        if create_new and (not os.path.exists(self.get_dir()) or not os.path.exists(self._get_json_file())):
+            self._initialize()
 
     def get_dir(self):
         """Abstract method on BaseLabResource"""
@@ -24,7 +27,7 @@ class Experiment(BaseLabResource):
         return os.path.join(get_experiments_dir(), experiment_id_safe)
 
     def _default_json(self):
-        return {"name": self.id, "config": {}}
+        return {"name": self.id, "id": self.id, "config": {}}
 
     def _initialize(self):
         super()._initialize()
@@ -147,6 +150,10 @@ class Experiment(BaseLabResource):
             if status and (job_json.get("status", "") != status):
                 continue
 
+            # Exclude DELETED jobs by default (unless explicitly requested)
+            if not status and job_json.get("status", "") == "DELETED":
+                continue
+
             # If it passed filters then add as long as it has job_data
             if "job_data" in job_json:
                 results.append(job_json)
@@ -165,50 +172,41 @@ class Experiment(BaseLabResource):
         return os.path.join(self.get_dir(), "jobs.json")
 
     def rebuild_jobs_index(self):
-        print("REBUiLDING JOB INDEX")
         results = {}
         try:
             # Iterate through jobs directories and check for index.json
-            for entry in os.listdir(get_jobs_dir()):
+            # Sort entries numerically since job IDs are numeric strings
+            job_entries = os.listdir(get_jobs_dir())
+            sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'))
+            
+            for entry in sorted_entries:
                 entry_path = os.path.join(get_jobs_dir(), entry)
                 if not os.path.isdir(entry_path):
                     continue
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = os.path.join(entry_path, "index.json")
-                latest_txt = os.path.join(entry_path, "latest.txt")
                 try:
-                    with open(latest_txt, "r", encoding="utf-8") as lf:
-                        latest_name = lf.read().strip()
-                    candidate = os.path.join(entry_path, latest_name)
-                    if os.path.isfile(candidate):
-                        index_file = candidate
-                except Exception:
-                    pass
-                if not os.path.isfile(index_file):
+                    with open(index_file, "r", encoding="utf-8") as lf:
+                        data = json.load(lf)
+                except Exception as e:
+                    print(f"Error loading index.json: {e}")
                     continue
-
-                # Check the metadata to see if it belongs to this experiment
-                # Also check for a type parameter, then add to index
-                try:
-                    with open(index_file, "r") as jf:
-                        data = json.load(jf)
-                        if data.get("experiment_id", "") != self.id:
-                            continue
-                        job_type = data.get("type", "UNKNOWN")
-                        results.setdefault(job_type, []).append(entry)
-                except Exception:
+                if data.get("experiment_id", "") != self.id:
                     continue
+                job_type = data.get("type", "UNKNOWN")
+                results.setdefault(job_type, []).append(entry)
 
             # Write discovered index to jobs.json
             if results:
                 try:
                     with open(self._jobs_json_file(), "w") as out:
                         json.dump(results, out, indent=4)
-                except Exception:
+                except Exception as e:
+                    print(f"Error writing jobs index: {e}")
                     pass
-        except Exception:
+        except Exception as e:
+            print(f"Error rebuilding jobs index: {e}")
             pass
-        print(results)
 
     def _get_all_jobs(self):
         """

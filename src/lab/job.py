@@ -27,15 +27,16 @@ class Job(BaseLabResource):
         # Default location for log file
         log_path = os.path.join(self.get_dir(), f"output_{self.id}.txt")
 
-        # Then check if there is a path explicitly set in the job data
-        try:
-            job_data = self.get_job_data()
-            if isinstance(job_data, dict):
-                override_path = job_data.get("output_file_path", "")
-                if isinstance(override_path, str) and override_path.strip() != "":
-                    log_path = override_path
-        except Exception:
-            pass
+        if not os.path.exists(log_path):
+            # Then check if there is a path explicitly set in the job data
+            try:
+                job_data = self.get_job_data()
+                if isinstance(job_data, dict):
+                    override_path = job_data.get("output_file_path", "")
+                    if isinstance(override_path, str) and override_path.strip() != "":
+                        log_path = override_path
+            except Exception:
+                pass
 
         # Make sure whatever log_path we return actually exists
         # Put an empty file there if not
@@ -54,7 +55,7 @@ class Job(BaseLabResource):
             "experiment_id": "",
             "job_data": default_job_data,
             "status": "NOT_STARTED",
-            "type": "TRAIN",
+            "type": "REMOTE",
             "progress": 0,
         }
 
@@ -138,12 +139,26 @@ class Job(BaseLabResource):
         if not message_str.endswith("\n"):
             message_str = message_str + "\n"
 
-        # Append to the job's log file, creating directories as needed
+        # Read existing content, append new message, and write back to log file
         try:
             log_path = self.get_log_path()
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(message_str)
+            
+            # Read existing content if file exists
+            existing_content = ""
+            if os.path.exists(log_path):
+                with open(log_path, "r", encoding="utf-8") as f:
+                    existing_content = f.read()
+            
+            # Append new message to existing content on a new line
+            if existing_content and not existing_content.endswith("\n"):
+                existing_content += "\n"
+            new_content = existing_content + message_str
+            
+            # Write back the complete content
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write(new_content)
+                f.flush()  # Ensure immediate write to disk, especially important in fused file systems
         except Exception:
             # Best-effort file logging; ignore file errors to avoid crashing job
             pass

@@ -85,7 +85,8 @@ def get_experiments_dir() -> str:
 
 
 def get_jobs_dir() -> str:
-    path = os.path.join(get_workspace_dir(), "jobs")
+    workspace_dir = get_workspace_dir()
+    path = os.path.join(workspace_dir, "jobs")
     os.makedirs(name=path, exist_ok=True)
     return path
 
@@ -163,6 +164,36 @@ def get_batched_prompts_dir() -> str:
 
 def get_galleries_cache_dir() -> str:
     path = os.path.join(get_workspace_dir(), "galleries")
+    os.makedirs(name=path, exist_ok=True)
+    return path
+
+
+def get_job_dir(job_id: str | int) -> str:
+    """
+    Return the filesystem directory for a specific job id under the jobs root.
+    Mirrors `Job.get_dir()` but provided here for convenience where a `Job`
+    instance is not readily available.
+    """
+    job_id_safe = secure_filename(str(job_id))
+    return os.path.join(get_jobs_dir(), job_id_safe)
+
+
+def get_job_artifacts_dir(job_id: str | int) -> str:
+    """
+    Return the artifacts directory for a specific job, creating it if needed.
+    Example: ~/.transformerlab/workspace/jobs/<job_id>/artifacts
+    """
+    path = os.path.join(get_job_dir(job_id), "artifacts")
+    os.makedirs(name=path, exist_ok=True)
+    return path
+
+
+def get_job_checkpoints_dir(job_id: str | int) -> str:
+    """
+    Return the checkpoints directory for a specific job, creating it if needed.
+    Example: ~/.transformerlab/workspace/jobs/<job_id>/checkpoints
+    """
+    path = os.path.join(get_job_dir(job_id), "checkpoints")
     os.makedirs(name=path, exist_ok=True)
     return path
 

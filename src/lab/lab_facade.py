@@ -6,8 +6,7 @@ import shutil
 
 from .experiment import Experiment
 from .job import Job
-from .dirs import get_models_dir
-
+from . import dirs
 
 
 class Lab:
@@ -31,7 +30,7 @@ class Lab:
         Initialize a new job under the given experiment.
         Creates the experiment structure if needed and creates a new job.
         """
-        self._experiment = Experiment(experiment_id)
+        self._experiment = Experiment(experiment_id, create_new=True)
         self._job = self._experiment.create_job()
         self._job.set_experiment(experiment_id)
         self._job.update_status("IN_PROGRESS")
@@ -76,6 +75,93 @@ class Lab:
             self._job.update_job_data_field("additional_output_path", additional_output_path)  # type: ignore[union-attr]
         if plot_data_path is not None and plot_data_path.strip() != "":
             self._job.update_job_data_field("plot_data_path", plot_data_path)  # type: ignore[union-attr]
+
+    def save_artifact(self, source_path: str, name: Optional[str] = None) -> str:
+        """
+        Save an artifact file or directory into this job's artifacts folder.
+        Returns the destination path on disk.
+        """
+        self._ensure_initialized()
+        if not isinstance(source_path, str) or source_path.strip() == "":
+            raise ValueError("source_path must be a non-empty string")
+        src = os.path.abspath(source_path)
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"Artifact source does not exist: {src}")
+
+        job_id = self._job.id  # type: ignore[union-attr]
+        artifacts_dir = dirs.get_job_artifacts_dir(job_id)
+        base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
+        dest = os.path.join(artifacts_dir, base_name)
+
+        # Create parent directories
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+
+        # Copy file or directory
+        if os.path.isdir(src):
+            if os.path.exists(dest):
+                shutil.rmtree(dest)
+            shutil.copytree(src, dest)
+        else:
+            shutil.copy2(src, dest)
+
+        # Track in job_data
+        try:
+            job_data = self._job.get_job_data()
+            artifact_list = []
+            if isinstance(job_data, dict):
+                existing = job_data.get("artifacts", [])
+                if isinstance(existing, list):
+                    artifact_list = existing
+            artifact_list.append(dest)
+            self._job.update_job_data_field("artifacts", artifact_list)
+        except Exception:
+            pass
+
+        return dest
+
+    def save_checkpoint(self, source_path: str, name: Optional[str] = None) -> str:
+        """
+        Save a checkpoint file or directory into this job's checkpoints folder.
+        Returns the destination path on disk.
+        """
+        self._ensure_initialized()
+        if not isinstance(source_path, str) or source_path.strip() == "":
+            raise ValueError("source_path must be a non-empty string")
+        src = os.path.abspath(source_path)
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
+
+        job_id = self._job.id  # type: ignore[union-attr]
+        ckpts_dir = dirs.get_job_checkpoints_dir(job_id)
+        base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
+        dest = os.path.join(ckpts_dir, base_name)
+
+        # Create parent directories
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+
+        # Copy file or directory
+        if os.path.isdir(src):
+            if os.path.exists(dest):
+                shutil.rmtree(dest)
+            shutil.copytree(src, dest)
+        else:
+            shutil.copy2(src, dest)
+
+        # Track in job_data and update latest pointer
+        try:
+            job_data = self._job.get_job_data()
+            ckpt_list = []
+            if isinstance(job_data, dict):
+                existing = job_data.get("checkpoints", [])
+                if isinstance(existing, list):
+                    ckpt_list = existing
+            ckpt_list.append(dest)
+            self._job.update_job_data_field("checkpoints", ckpt_list)
+            self._job.update_job_data_field("latest_checkpoint", dest)
+        except Exception:
+            pass
+
+        return dest
 
     def error(
         self,
