@@ -2,7 +2,6 @@ import os
 from datetime import datetime
 from time import sleep
 
-
 from lab import lab
 
 
@@ -14,9 +13,9 @@ def train():
         "experiment_name": "alpha",
         "model_name": "HuggingFaceTB/SmolLM-135M-Instruct",
         "dataset": "Trelis/touch-rugby-rules",
-        "template_name": "full-demo",
+        "template_name": "wandb-demo",
         "output_dir": "./output",
-        "log_to_wandb": False,
+        "log_to_wandb": True,  # Enable wandb logging for demo
         "_config": {
             "dataset_name": "Trelis/touch-rugby-rules",
             "lr": 2e-5,
@@ -47,7 +46,7 @@ def train():
         lab.log("Loaded dataset")
 
         # Report initial progress
-        lab.job.update_progress(10)
+        lab.update_progress(10)
 
         # Train the model
         lab.log("Starting training...")
@@ -55,7 +54,7 @@ def train():
         for i in range(8):
             sleep(1)
             lab.log(f"Iteration {i + 1}/8")
-            lab.job.update_progress(10 + (i + 1) * 10)
+            lab.update_progress(10 + (i + 1) * 10)
             print(f"Iteration {i + 1}/8")
             
             # Save fake checkpoint every 2 iterations
@@ -88,6 +87,40 @@ def train():
                 saved_artifact_path = lab.save_artifact(artifact_file, f"metrics_epoch_{i + 1}.json")
                 lab.log(f"Saved artifact: {saved_artifact_path}")
 
+            if i == 3:  # Initialize wandb halfway through training
+                try:
+                    import wandb
+                    if wandb.run is None:
+                        lab.log("🚀 Initializing wandb during training...")
+                        wandb.init(
+                            project="transformerlab-test",
+                            name=f"test-run-{lab.job.id}",
+                            config=training_config["_config"],
+                        )
+                        lab.log("✅ Wandb initialized - URL should be auto-detected on next progress update!")
+                except ImportError:
+                    lab.log("⚠️  Wandb not available")
+                except Exception as e:
+                    lab.log(f"⚠️  Error with wandb initialization: {e}")
+            
+            # Log metrics to wandb if available
+            try:
+                import wandb
+                if wandb.run is not None:
+                    # Simulate training metrics
+                    fake_loss = 0.5 - (i + 1) * 0.05
+                    fake_accuracy = 0.6 + (i + 1) * 0.04
+                    
+                    wandb.log({
+                        "train/loss": fake_loss,
+                        "train/accuracy": fake_accuracy,
+                        "epoch": i + 1
+                    })
+                    
+                    lab.log(f"📈 Logged metrics to wandb: loss={fake_loss:.3f}, accuracy={fake_accuracy:.3f}")
+            except Exception:
+                pass
+
         # Calculate training time
         end_time = datetime.now()
         training_duration = end_time - start_time
@@ -117,6 +150,19 @@ def train():
         
         config_artifact_path = lab.save_artifact(config_file, "training_config.json")
         lab.log(f"Saved training config: {config_artifact_path}")
+        # Get the captured wandb URL from job data for reporting
+        job_data = lab.job.get_job_data()
+        captured_wandb_url = job_data.get("wandb_run_url", "None")
+        lab.log(f"📋 Final wandb URL stored in job data: {captured_wandb_url}")
+        
+        # Finish wandb run if it was initialized
+        try:
+            import wandb
+            if wandb.run is not None:
+                wandb.finish()
+                lab.log("✅ Wandb run finished")
+        except Exception:
+            pass
         
         print("Complete")
 
@@ -130,6 +176,7 @@ def train():
             "output_dir": os.path.join(
                 training_config["output_dir"], f"final_model_{lab.job.id}"
             ),
+            "wandb_url": captured_wandb_url,
         }
 
     except KeyboardInterrupt:

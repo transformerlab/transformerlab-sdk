@@ -34,6 +34,9 @@ class Lab:
         self._job = self._experiment.create_job()
         self._job.set_experiment(experiment_id)
         self._job.update_status("IN_PROGRESS")
+        
+        # Check for wandb integration and capture URL if available
+        self._detect_and_capture_wandb_url()
 
     def set_config(self, config: Dict[str, Any]) -> None:
         """
@@ -52,6 +55,17 @@ class Lab:
     def log(self, message: str) -> None:
         self._ensure_initialized()
         self._job.log_info(message)  # type: ignore[union-attr]
+        # Check for wandb URL on every log operation
+        self._check_and_capture_wandb_url()
+
+    def update_progress(self, progress: int) -> None:
+        """
+        Update job progress and check for wandb URL detection.
+        """
+        self._ensure_initialized()
+        self._job.update_progress(progress)  # type: ignore[union-attr]
+        # Check for wandb URL on every progress update
+        self._check_and_capture_wandb_url()
 
     # ------------- completion -------------
     def finish(
@@ -176,6 +190,99 @@ class Lab:
         self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
         self._job.update_job_data_field("status", "FAILED")  # type: ignore[union-attr]
 
+    def _detect_and_capture_wandb_url(self) -> None:
+        """
+        Detect wandb run URLs from various sources and store them in job data.
+        This method checks for wandb integration in multiple ways:
+        1. Environment variables set by wandb
+        2. Active wandb runs in the current process
+        3. TRL trainer integrations
+        """
+        try:
+            # Method 1: Check environment variables set by wandb
+            wandb_url = os.environ.get('WANDB_URL')
+            if wandb_url:
+                self._job.update_job_data_field("wandb_run_url", wandb_url)
+                print(f"📊 Detected wandb run URL: {wandb_url}")
+                return
+            
+            # Method 2: Check for active wandb run in current process
+            try:
+                import wandb
+                if wandb.run is not None:
+                    wandb_url = wandb.run.url
+                    if wandb_url:
+                        self._job.update_job_data_field("wandb_run_url", wandb_url)
+                        print(f"📊 Detected wandb run URL: {wandb_url}")
+                        return
+            except ImportError:
+                pass
+            
+            # Method 3: Check for wandb in TRL trainers or other frameworks
+            # Look for wandb integration in global variables or modules
+            try:
+                import wandb
+                # Check if there's a wandb run that was initialized elsewhere
+                if hasattr(wandb, 'api') and wandb.api and wandb.api.api_key:
+                    # If wandb is configured, try to get the current run
+                    current_run = wandb.run
+                    if current_run and hasattr(current_run, 'url'):
+                        wandb_url = current_run.url
+                        if wandb_url:
+                            self._job.update_job_data_field("wandb_run_url", wandb_url)
+                            print(f"📊 Detected wandb run URL: {wandb_url}")
+                            return
+            except (ImportError, AttributeError):
+                pass
+                
+        except Exception:
+            # Silently fail - wandb detection is optional
+            pass
+
+    def _check_and_capture_wandb_url(self) -> None:
+        """
+        Check for wandb run URLs and capture them in job data.
+        This is called automatically on every log and progress update operation.
+        """
+        try:
+            # Only check if we haven't already captured a wandb URL
+            job_data = self._job.get_job_data()
+            if job_data.get("wandb_run_url"):
+                return  # Already have a wandb URL
+            
+            # Method 1: Check environment variables
+            wandb_url = os.environ.get('WANDB_URL')
+            if wandb_url:
+                self._job.update_job_data_field("wandb_run_url", wandb_url)
+                print(f"📊 Auto-detected wandb URL from environment: {wandb_url}")
+                return
+            
+            # Method 2: Check active wandb run
+            try:
+                import wandb
+                if wandb.run is not None and hasattr(wandb.run, 'url'):
+                    wandb_url = wandb.run.url
+                    if wandb_url:
+                        self._job.update_job_data_field("wandb_run_url", wandb_url)
+                        print(f"📊 Auto-detected wandb URL from wandb.run: {wandb_url}")
+                        return
+            except ImportError:
+                pass
+                
+        except Exception:
+            # Silently fail - wandb detection is optional
+            pass
+
+    def capture_wandb_url(self, wandb_url: str) -> None:
+        """
+        Manually capture a wandb run URL and store it in job data.
+        This can be called by scripts that have wandb integration.
+        """
+        if wandb_url and wandb_url.strip():
+            self._ensure_initialized()
+            self._job.update_job_data_field("wandb_run_url", wandb_url.strip())
+            print(f"📊 Captured wandb run URL: {wandb_url.strip()}")
+
     # ------------- helpers -------------
     def _ensure_initialized(self) -> None:
         if self._experiment is None or self._job is None:
@@ -218,5 +325,55 @@ class Lab:
     def experiment(self) -> Experiment:
         self._ensure_initialized()
         return self._experiment  # type: ignore[return-value]
+
+
+
+
+def capture_wandb_url_from_env() -> str | None:
+    """
+    Utility function to capture wandb run URL from environment variables.
+    This can be called by scripts that use wandb but don't use the TLabPlugin system.
+    
+    Returns:
+        str: The wandb run URL if found, None otherwise
+    """
+    return os.environ.get('WANDB_URL')
+
+
+def capture_wandb_url_from_run() -> str | None:
+    """
+    Utility function to capture wandb run URL from the current wandb run.
+    This can be called by scripts that have initialized wandb.run.
+    
+    Returns:
+        str: The wandb run URL if found, None otherwise
+    """
+    try:
+        import wandb
+        if wandb.run is not None and hasattr(wandb.run, 'url'):
+            return wandb.run.url
+    except ImportError:
+        pass
+    return None
+
+
+def capture_wandb_url_from_trl() -> str | None:
+    """
+    Utility function to capture wandb run URL from TRL trainers.
+    This checks for wandb integration in TRL-based training scripts.
+    
+    Returns:
+        str: The wandb run URL if found, None otherwise
+    """
+    try:
+        import wandb
+        # Check for wandb in TRL trainer context
+        if wandb.run is not None:
+            return wandb.run.url
+        
+        # Check environment variables as fallback
+        return os.environ.get('WANDB_URL')
+    except ImportError:
+        return None
 
 
