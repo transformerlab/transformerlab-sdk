@@ -112,7 +112,7 @@ def train():
             pass
         
         # Save the trained model
-        model_dir = os.path.join(training_config["output_dir"], f"final_model")
+        model_dir = os.path.join(training_config["output_dir"], "final_model")
         os.makedirs(model_dir, exist_ok=True)
         
         # Create dummy model files to simulate a saved model
