@@ -177,7 +177,7 @@ class Lab:
 
         job_id = self._job.id  # type: ignore[union-attr]
         models_dir = dirs.get_job_models_dir(job_id)
-        base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
+        base_name = f"{job_id}_{name}" if (isinstance(name, str) and name.strip() != "") else f"{job_id}_{os.path.basename(src)}"
         dest = os.path.join(models_dir, base_name)
 
         # Create parent directories
