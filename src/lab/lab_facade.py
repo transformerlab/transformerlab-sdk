@@ -163,6 +163,49 @@ class Lab:
 
         return dest
 
+    def save_model(self, source_path: str, name: Optional[str] = None) -> str:
+        """
+        Save a model file or directory into this job's models folder.
+        Returns the destination path on disk.
+        """
+        self._ensure_initialized()
+        if not isinstance(source_path, str) or source_path.strip() == "":
+            raise ValueError("source_path must be a non-empty string")
+        src = os.path.abspath(source_path)
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"Model source does not exist: {src}")
+
+        job_id = self._job.id  # type: ignore[union-attr]
+        models_dir = dirs.get_job_models_dir(job_id)
+        base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
+        dest = os.path.join(models_dir, base_name)
+
+        # Create parent directories
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+
+        # Copy file or directory
+        if os.path.isdir(src):
+            if os.path.exists(dest):
+                shutil.rmtree(dest)
+            shutil.copytree(src, dest)
+        else:
+            shutil.copy2(src, dest)
+
+        # Track in job_data
+        try:
+            job_data = self._job.get_job_data()
+            model_list = []
+            if isinstance(job_data, dict):
+                existing = job_data.get("models", [])
+                if isinstance(existing, list):
+                    model_list = existing
+            model_list.append(dest)
+            self._job.update_job_data_field("models", model_list)
+        except Exception:
+            pass
+
+        return dest
+
     def error(
         self,
         message: str = "",
@@ -183,8 +226,8 @@ class Lab:
         """
         self._ensure_initialized()
         job_id = self._job.id  # type: ignore[union-attr]
-        ckpts_dir = dirs.get_job_checkpoints_dir(job_id)
-        job_model_path = os.path.join(ckpts_dir, model_name)
+        models_dir = dirs.get_job_models_dir(job_id)
+        job_model_path = os.path.join(models_dir, model_name)
         global_models_dir = dirs.get_models_dir()
         global_model_path = os.path.join(global_models_dir, global_model_id)
         if os.path.exists(job_model_path):
