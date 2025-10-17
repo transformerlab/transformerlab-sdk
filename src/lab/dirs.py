@@ -198,6 +198,16 @@ def get_job_checkpoints_dir(job_id: str | int) -> str:
     return path
 
 
+def get_job_models_dir(job_id: str | int) -> str:
+    """
+    Return the models directory for a specific job, creating it if needed.
+    Example: ~/.transformerlab/workspace/jobs/<job_id>/models
+    """
+    path = os.path.join(get_job_dir(job_id), "models")
+    os.makedirs(name=path, exist_ok=True)
+    return path
+
+
 # Evals output file:
 # TODO: These should probably be in the plugin subclasses
 
