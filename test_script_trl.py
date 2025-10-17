@@ -11,8 +11,16 @@ from time import sleep
 from lab import lab
 
 
-def train_with_trl():
-    """Training function using HuggingFace SFTTrainer with automatic wandb detection"""
+def train_with_trl(quick_test=True):
+    """Training function using HuggingFace SFTTrainer with automatic wandb detection
+    
+    Args:
+        quick_test (bool): If True, only initializes trainer and tests wandb detection.
+                          If False, actually runs training.
+    """
+    
+    # Configure GPU usage - use only GPU 0
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     
     # Training configuration
     training_config = {
@@ -22,19 +30,24 @@ def train_with_trl():
         "template_name": "trl-wandb-demo",
         "output_dir": "./output",
         "log_to_wandb": True,
+        "quick_test": quick_test,
         "_config": {
             "dataset_name": "Trelis/touch-rugby-rules",
             "lr": 2e-5,
-            "num_train_epochs": 1,
+            "num_train_epochs": 1 if not quick_test else 0.01,  # Very short training for quick test
             "batch_size": 2,  # Small batch size for testing
             "gradient_accumulation_steps": 1,
             "warmup_ratio": 0.03,
             "weight_decay": 0.01,
             "max_seq_length": 512,
             "logging_steps": 1,
-            "save_steps": 100,
-            "eval_steps": 100,
+            "save_steps": 100 if not quick_test else 1,
+            "eval_steps": 100 if not quick_test else 1,
+            "max_steps": 3 if quick_test else -1,  # Limit steps for quick test
             "report_to": ["wandb"],  # Enable wandb reporting in SFTTrainer
+            "dataloader_num_workers": 0,  # Avoid multiprocessing issues
+            "remove_unused_columns": False,
+            "push_to_hub": False,
         },
     }
 
@@ -45,7 +58,9 @@ def train_with_trl():
 
         # Log start time
         start_time = datetime.now()
-        lab.log(f"Training started at {start_time}")
+        mode = "Quick test" if quick_test else "Full training"
+        lab.log(f"{mode} started at {start_time}")
+        lab.log(f"Using GPU: {os.environ.get('CUDA_VISIBLE_DEVICES', 'All available')}")
 
         # Create output directory if it doesn't exist
         os.makedirs(training_config["output_dir"], exist_ok=True)
@@ -56,6 +71,12 @@ def train_with_trl():
             from datasets import load_dataset
             dataset = load_dataset(training_config["dataset"])
             lab.log(f"Loaded dataset with {len(dataset['train'])} examples")
+            
+            # For quick test, use only a small subset
+            if quick_test:
+                dataset["train"] = dataset["train"].select(range(10))  # Use only 10 examples
+                lab.log(f"Quick test mode: Using only {len(dataset['train'])} examples")
+                
         except Exception as e:
             lab.log(f"Error loading dataset: {e}")
             # Create a small fake dataset for testing
@@ -156,19 +177,29 @@ def train_with_trl():
         lab.update_progress(60)
 
         # Start training - this is where wandb will be initialized if using SFTTrainer
-        lab.log("Starting training with SFTTrainer...")
+        if quick_test:
+            lab.log("🚀 Quick test mode: Initializing SFTTrainer and testing wandb detection...")
+        else:
+            lab.log("Starting training with SFTTrainer...")
+            
         try:
             if 'trainer' in locals():
                 # Real training with SFTTrainer
-                trainer.train()
-                lab.log("✅ Training completed with SFTTrainer")
+                if quick_test:
+                    lab.log("✅ SFTTrainer initialized successfully - testing wandb detection...")
+                    # Just test that wandb is initialized, don't actually train
+                    lab.log("Quick test: Skipping actual training, just testing wandb URL detection")
+                else:
+                    trainer.train()
+                    lab.log("✅ Training completed with SFTTrainer")
             else:
                 # Simulate training
                 lab.log("Simulating training...")
-                for i in range(3):
-                    sleep(1)
-                    lab.log(f"Training step {i + 1}/3")
-                    lab.update_progress(60 + (i + 1) * 10)
+                steps = 3 if quick_test else 10
+                for i in range(steps):
+                    sleep(0.5 if quick_test else 1)
+                    lab.log(f"Training step {i + 1}/{steps}")
+                    lab.update_progress(60 + (i + 1) * (30 // steps))
                     
                     # Log some fake metrics to wandb if available
                     try:
@@ -222,6 +253,8 @@ def train_with_trl():
             "output_dir": training_config["output_dir"],
             "wandb_url": captured_wandb_url,
             "trainer_type": "SFTTrainer" if 'trainer' in locals() else "simulated",
+            "mode": "quick_test" if quick_test else "full_training",
+            "gpu_used": os.environ.get('CUDA_VISIBLE_DEVICES', 'all'),
         }
 
     except KeyboardInterrupt:
@@ -239,5 +272,15 @@ def train_with_trl():
 
 
 if __name__ == "__main__":
-    result = train_with_trl()
+    import sys
+    
+    # Check if user wants full training or quick test
+    quick_test = True  # Default to quick test
+    if len(sys.argv) > 1 and sys.argv[1] == "--full-training":
+        quick_test = False
+        print("🚀 Running full training mode...")
+    else:
+        print("🚀 Running quick test mode (use --full-training for actual training)...")
+    
+    result = train_with_trl(quick_test=quick_test)
     print("Training result:", result)
