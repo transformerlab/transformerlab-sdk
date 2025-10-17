@@ -182,8 +182,10 @@ class Lab:
         Creates a symlink to avoid duplicating large model files.
         """
         self._ensure_initialized()
-        job_model_path = os.path.join(self._job.get_dir(), "models", model_name)
-        global_models_dir = get_models_dir()
+        job_id = self._job.id  # type: ignore[union-attr]
+        ckpts_dir = dirs.get_job_checkpoints_dir(job_id)
+        job_model_path = os.path.join(ckpts_dir, model_name)
+        global_models_dir = dirs.get_models_dir()
         global_model_path = os.path.join(global_models_dir, global_model_id)
         if os.path.exists(job_model_path):
             # Create symlink instead of copying to save space
