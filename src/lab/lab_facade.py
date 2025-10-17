@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from typing import Optional, Dict, Any
+import os
+import shutil
 
 from .experiment import Experiment
 from .job import Job
+from .dirs import get_models_dir
+
 
 
 class Lab:
@@ -85,6 +89,24 @@ class Lab:
         self._job.update_job_data_field("completion_status", "failed")  # type: ignore[union-attr]
         self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
         self._job.update_job_data_field("status", "FAILED")  # type: ignore[union-attr]
+
+    def promote_model(self, model_name: str, global_model_id: str) -> str:
+        """
+        Promote a model from the job's models directory to the global models directory.
+        Creates a symlink to avoid duplicating large model files.
+        """
+        self._ensure_initialized()
+        job_model_path = os.path.join(self._job.get_dir(), "models", model_name)
+        global_models_dir = get_models_dir()
+        global_model_path = os.path.join(global_models_dir, global_model_id)
+        if os.path.exists(job_model_path):
+            # Create symlink instead of copying to save space
+            os.makedirs(global_models_dir, exist_ok=True)
+            os.symlink(job_model_path, global_model_path)
+            self.log(f"Model symlinked to global: {global_model_path} -> {job_model_path}")
+            return global_model_path
+        else:
+            raise FileNotFoundError(f"Model {model_name} not found in job models")
 
     # ------------- helpers -------------
     def _ensure_initialized(self) -> None:
