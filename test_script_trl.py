@@ -9,7 +9,6 @@ from datetime import datetime
 from time import sleep
 
 from lab import lab
-from numpy import False_
 
 
 def train_with_trl(quick_test=True):
