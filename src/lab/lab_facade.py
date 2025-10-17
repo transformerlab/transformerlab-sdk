@@ -219,34 +219,6 @@ class Lab:
         self._job.update_job_data_field("completion_details", message)  # type: ignore[union-attr]
         self._job.update_job_data_field("status", "FAILED")  # type: ignore[union-attr]
 
-    def promote_model(self, model_name: str, global_model_id: str) -> str:
-        """
-        Promote a model from the job's models directory to the global models directory.
-        Tries to create a hardlink to avoid duplicating large model files; falls back to copying if hardlinks are not supported.
-        """
-        self._ensure_initialized()
-        job_id = self._job.id  # type: ignore[union-attr]
-        models_dir = dirs.get_job_models_dir(job_id)
-        job_model_path = os.path.join(models_dir, model_name)
-        global_models_dir = dirs.get_models_dir()
-        global_model_path = os.path.join(global_models_dir, global_model_id)
-        if os.path.exists(job_model_path):
-            os.makedirs(global_models_dir, exist_ok=True)
-            try:
-                # Try hardlink first to save space
-                os.link(job_model_path, global_model_path)
-                self.log(f"Model hardlinked to global: {global_model_path} -> {job_model_path}")
-            except OSError:
-                # Fallback to copying if hardlinks not supported (e.g., in FUSE filesystems)
-                if os.path.isdir(job_model_path):
-                    shutil.copytree(job_model_path, global_model_path)
-                else:
-                    shutil.copy2(job_model_path, global_model_path)
-                self.log(f"Model copied to global (hardlink not supported): {global_model_path}")
-            return global_model_path
-        else:
-            raise FileNotFoundError(f"Model {model_name} not found in job models")
-
     # ------------- helpers -------------
     def _ensure_initialized(self) -> None:
         if self._experiment is None or self._job is None:
