@@ -150,6 +150,10 @@ class Experiment(BaseLabResource):
             if status and (job_json.get("status", "") != status):
                 continue
 
+            # Exclude DELETED jobs by default (unless explicitly requested)
+            if not status and job_json.get("status", "") == "DELETED":
+                continue
+
             # If it passed filters then add as long as it has job_data
             if "job_data" in job_json:
                 results.append(job_json)
@@ -168,11 +172,14 @@ class Experiment(BaseLabResource):
         return os.path.join(self.get_dir(), "jobs.json")
 
     def rebuild_jobs_index(self):
-        print("REBUiLDING JOB INDEX")
         results = {}
         try:
             # Iterate through jobs directories and check for index.json
-            for entry in os.listdir(get_jobs_dir()):
+            # Sort entries numerically since job IDs are numeric strings
+            job_entries = os.listdir(get_jobs_dir())
+            sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'))
+            
+            for entry in sorted_entries:
                 entry_path = os.path.join(get_jobs_dir(), entry)
                 if not os.path.isdir(entry_path):
                     continue
@@ -185,7 +192,6 @@ class Experiment(BaseLabResource):
                     print(f"Error loading index.json: {e}")
                     continue
                 if data.get("experiment_id", "") != self.id:
-                    print(f"Experiment ID mismatch for job {entry}: {data.get('experiment_id', '')} != {self.id}")
                     continue
                 job_type = data.get("type", "UNKNOWN")
                 results.setdefault(job_type, []).append(entry)
@@ -201,7 +207,6 @@ class Experiment(BaseLabResource):
         except Exception as e:
             print(f"Error rebuilding jobs index: {e}")
             pass
-        print(results)
 
     def _get_all_jobs(self):
         """
