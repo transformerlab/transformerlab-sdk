@@ -175,9 +175,9 @@ class Experiment(BaseLabResource):
         results = {}
         try:
             # Iterate through jobs directories and check for index.json
-            # Sort entries numerically since job IDs are numeric strings
+            # Sort entries numerically since job IDs are numeric strings (descending order)
             job_entries = os.listdir(get_jobs_dir())
-            sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'))
+            sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'), reverse=True)
             
             for entry in sorted_entries:
                 entry_path = os.path.join(get_jobs_dir(), entry)
