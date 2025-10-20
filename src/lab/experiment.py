@@ -166,8 +166,6 @@ class Experiment(BaseLabResource):
         Returns a generator that yields jobs as they are loaded.
         This is much faster than get_jobs() because it doesn't load all jobs into memory.
         """
-        # # Rebuild index once
-        # self.rebuild_jobs_index()
         
         # Get job IDs based on type filter
         if type:
@@ -197,6 +195,45 @@ class Experiment(BaseLabResource):
                 # Skip this job if there's an error loading it
                 print(f"Error loading job {job_id}: {job_error}")
                 continue
+
+    def get_job_ids(self, type: str = "", status: str = ""):
+        """
+        Get job IDs quickly without loading full job data.
+        Returns just the job IDs that match the filters.
+        This is much faster than get_jobs() for getting job counts and IDs.
+        """
+        
+        # Get job IDs based on type filter
+        if type:
+            job_ids = self._get_jobs_of_type(type)
+        else:
+            job_ids = self._get_all_jobs()
+        
+        # Apply the same filtering logic as get_jobs_streaming
+        filtered_job_ids = []
+        for job_id in job_ids:
+            try:
+                job = Job.get(job_id)
+                job_json = job.get_json_data()
+                
+                # Apply status filter
+                if status and (job_json.get("status", "") != status):
+                    continue
+                
+                # Exclude DELETED jobs by default
+                if not status and job_json.get("status", "") == "DELETED":
+                    continue
+                
+                # Only include jobs with job_data
+                if "job_data" in job_json:
+                    filtered_job_ids.append(job_id)
+                    
+            except Exception as job_error:
+                # Skip this job if there's an error loading it
+                print(f"Error loading job {job_id}: {job_error}")
+                continue
+        
+        return filtered_job_ids
 
     ###############################
     # jobs.json MANAGMENT FUNCTIONS
