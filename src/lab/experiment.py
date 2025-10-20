@@ -160,6 +160,44 @@ class Experiment(BaseLabResource):
 
         return results
 
+    def get_jobs_streaming(self, type: str = "", status: str = ""):
+        """
+        Get jobs one by one for streaming, avoiding the slow get_jobs method.
+        Returns a generator that yields jobs as they are loaded.
+        This is much faster than get_jobs() because it doesn't load all jobs into memory.
+        """
+        # # Rebuild index once
+        # self.rebuild_jobs_index()
+        
+        # Get job IDs based on type filter
+        if type:
+            job_ids = self._get_jobs_of_type(type)
+        else:
+            job_ids = self._get_all_jobs()
+        
+        # Yield each job individually as we load it
+        for job_id in job_ids:
+            try:
+                job = Job.get(job_id)
+                job_json = job.get_json_data()
+                
+                # Apply status filter
+                if status and (job_json.get("status", "") != status):
+                    continue
+                
+                # Exclude DELETED jobs by default
+                if not status and job_json.get("status", "") == "DELETED":
+                    continue
+                
+                # Only include jobs with job_data
+                if "job_data" in job_json:
+                    yield job_json
+                    
+            except Exception as job_error:
+                # Skip this job if there's an error loading it
+                print(f"Error loading job {job_id}: {job_error}")
+                continue
+
     ###############################
     # jobs.json MANAGMENT FUNCTIONS
     # Index for tracking which jobs belong to this Experiment
