@@ -116,6 +116,9 @@ class Experiment(BaseLabResource):
         new_job = Job.create(new_job_id)
         new_job.set_experiment(self.id)
 
+        # Update jobs index now that a new job exists
+        self.rebuild_jobs_index()
+
         return new_job
 
     def get_jobs(self, type: str = "", status: str = ""):
@@ -124,11 +127,6 @@ class Experiment(BaseLabResource):
         type: If not blank, filter by jobs with this type.
         status: If not blank, filter by jobs with this status.
         """
-
-        # Rebuild the index
-        # TODO: The point of the index is to not do this every time
-        self.rebuild_jobs_index()
-
         # First get jobs of the passed type
         job_list = []
         if type:
@@ -145,7 +143,6 @@ class Experiment(BaseLabResource):
                 job_json = job.get_json_data()
             except Exception:
                 continue
-
             # Filter for status
             if status and (job_json.get("status", "") != status):
                 continue
@@ -157,7 +154,7 @@ class Experiment(BaseLabResource):
             # If it passed filters then add as long as it has job_data
             if "job_data" in job_json:
                 results.append(job_json)
-
+        
         return results
 
     ###############################
@@ -175,9 +172,9 @@ class Experiment(BaseLabResource):
         results = {}
         try:
             # Iterate through jobs directories and check for index.json
-            # Sort entries numerically since job IDs are numeric strings
+            # Sort entries numerically since job IDs are numeric strings (descending order)
             job_entries = os.listdir(get_jobs_dir())
-            sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'))
+            sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'), reverse=True)
             
             for entry in sorted_entries:
                 entry_path = os.path.join(get_jobs_dir(), entry)
