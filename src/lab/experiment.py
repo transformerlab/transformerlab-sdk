@@ -116,6 +116,9 @@ class Experiment(BaseLabResource):
         new_job = Job.create(new_job_id)
         new_job.set_experiment(self.id)
 
+        # Update jobs index now that a new job exists
+        self.rebuild_jobs_index()
+
         return new_job
 
     def get_jobs(self, type: str = "", status: str = ""):
@@ -124,10 +127,6 @@ class Experiment(BaseLabResource):
         type: If not blank, filter by jobs with this type.
         status: If not blank, filter by jobs with this status.
         """
-
-        # Rebuild the index
-        # TODO: The point of the index is to not do this every time
-        self.rebuild_jobs_index()
 
         # First get jobs of the passed type
         job_list = []
