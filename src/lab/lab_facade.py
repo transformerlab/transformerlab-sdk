@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from time import time
 from typing import Optional, Dict, Any
 import os
 import shutil
@@ -267,15 +268,20 @@ class Lab:
             
             # Prepare provenance metadata from job data
             job_data = self._job.get_job_data()
-            dataset_name = job_data.get("dataset_name") or job_data.get("dataset")
             
             provenance_metadata = {
                 "job_id": job_id,
-                "input_model": parent_model or job_data.get("model_name"),
-                "dataset": dataset_name,
-                "adaptor_name": job_data.get("adaptor_name"),
-                "parameters": job_data.get("config", {}),
+                "model_name": parent_model or job_data.get("model_name"),
+                "model_architecture": architecture,
+                "input_model": parent_model,
+                "dataset": job_data.get("dataset"),
+                "adaptor_name": job_data.get("adaptor_name", None),
+                "parameters": job_data.get("_config", {}),
                 "start_time": job_data.get("start_time", ""),
+                "end_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "md5_checksums": md5_objects,
+
+
             }
             
             # Create the _tlab_provenance.json file

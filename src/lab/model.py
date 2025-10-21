@@ -146,8 +146,8 @@ class Model(BaseLabResource):
 
         return md5_objects
 
-    def create_provenance_file(self, model_path: str, model_name: str, model_architecture: str, 
-                               md5_objects: list, provenance_data: dict = None) -> str:
+    def create_provenance_file(self, model_path: str, model_name: str = None, model_architecture: str = None,
+                               md5_objects: list = None, provenance_data: dict = None) -> str:
         """
         Create a _tlab_provenance.json file containing model provenance data.
         
