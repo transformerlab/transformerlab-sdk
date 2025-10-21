@@ -377,6 +377,34 @@ class Lab:
         self._ensure_initialized()
         return self._job  # type: ignore[return-value]
 
+    def get_checkpoints_dir(self) -> str:
+        """
+        Get the checkpoints directory path for the current job.
+        """
+        self._ensure_initialized()
+        return self._job.get_checkpoints_dir()  # type: ignore[union-attr]
+    
+    def get_artifacts_dir(self) -> str:
+        """
+        Get the artifacts directory path for the current job.
+        """
+        self._ensure_initialized()
+        return self._job.get_artifacts_dir()  # type: ignore[union-attr]
+    
+    def get_checkpoint_paths(self) -> list[str]:
+        """
+        Get list of checkpoint file paths for the current job.
+        """
+        self._ensure_initialized()
+        return self._job.get_checkpoint_paths()  # type: ignore[union-attr]
+    
+    def get_artifact_paths(self) -> list[str]:
+        """
+        Get list of artifact file paths for the current job.
+        """
+        self._ensure_initialized()
+        return self._job.get_artifact_paths()  # type: ignore[union-attr]
+
     @property
     def experiment(self) -> Experiment:
         self._ensure_initialized()

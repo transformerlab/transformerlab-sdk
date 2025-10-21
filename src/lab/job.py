@@ -235,6 +235,58 @@ class Job(BaseLabResource):
             return queued_jobs[0][1]
         return None
 
+    def get_checkpoints_dir(self):
+        """
+        Get the checkpoints directory path for this job.
+        """
+        return dirs.get_job_checkpoints_dir(self.id)
+    
+    def get_artifacts_dir(self):
+        """
+        Get the artifacts directory path for this job.
+        """
+        return dirs.get_job_artifacts_dir(self.id)
+    
+    def get_checkpoint_paths(self):
+        """
+        Get list of checkpoint file paths for this job.
+        Returns list of checkpoint paths from job_data or scans directory.
+        """
+        try:
+            # Scan the checkpoints directory
+            checkpoints_dir = self.get_checkpoints_dir()
+            if os.path.exists(checkpoints_dir):
+                checkpoint_files = []
+                for item in os.listdir(checkpoints_dir):
+                    item_path = os.path.join(checkpoints_dir, item)
+                    if os.path.isfile(item_path):
+                        checkpoint_files.append(item_path)
+                return sorted(checkpoint_files)
+            
+            return []
+        except Exception:
+            return []
+    
+    
+    def get_artifact_paths(self):
+        """
+        Get list of artifact file paths for this job.
+        Returns list of artifact paths from job_data or scans directory.
+        """
+        try:
+            # Scan the artifacts directory
+            artifacts_dir = self.get_artifacts_dir()
+            if os.path.exists(artifacts_dir):
+                artifact_files = []
+                for item in os.listdir(artifacts_dir):
+                    item_path = os.path.join(artifacts_dir, item)
+                    if os.path.isfile(item_path):
+                        artifact_files.append(item_path)
+                return sorted(artifact_files)
+        except Exception:
+            return []
+        return []
+
     def delete(self):
         """
         Mark this job as deleted.
