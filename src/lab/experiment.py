@@ -182,10 +182,6 @@ class Experiment(BaseLabResource):
                 if status and (job_json.get("status", "") != status):
                     continue
                 
-                # Exclude DELETED jobs by default
-                if not status and job_json.get("status", "") == "DELETED":
-                    continue
-                
                 # Only include jobs with job_data
                 if "job_data" in job_json:
                     yield job_json
@@ -208,7 +204,11 @@ class Experiment(BaseLabResource):
         else:
             job_ids = self._get_all_jobs()
         
-        # Apply the same filtering logic as get_jobs_streaming
+        # If no status filter, return all job IDs
+        if not status:
+            return job_ids
+        
+        # Apply status filter only if specified
         filtered_job_ids = []
         for job_id in job_ids:
             try:
@@ -216,15 +216,7 @@ class Experiment(BaseLabResource):
                 job_json = job.get_json_data()
                 
                 # Apply status filter
-                if status and (job_json.get("status", "") != status):
-                    continue
-                
-                # Exclude DELETED jobs by default
-                if not status and job_json.get("status", "") == "DELETED":
-                    continue
-                
-                # Only include jobs with job_data
-                if "job_data" in job_json:
+                if job_json.get("status", "") == status:
                     filtered_job_ids.append(job_id)
                     
             except Exception as job_error:
@@ -233,6 +225,31 @@ class Experiment(BaseLabResource):
                 continue
         
         return filtered_job_ids
+
+    def remove_job_from_index(self, job_id: str):
+        """
+        Remove a job from the jobs index when it's deleted.
+        This keeps the index clean without needing to rebuild it.
+        """
+        try:
+            # Load current index
+            if os.path.exists(self._jobs_json_file()):
+                with open(self._jobs_json_file(), "r") as f:
+                    index_data = json.load(f)
+            else:
+                return
+            
+            # Remove job_id from all job types
+            for job_type, job_list in index_data.items():
+                if job_id in job_list:
+                    job_list.remove(job_id)
+            
+            # Write updated index
+            with open(self._jobs_json_file(), "w") as f:
+                json.dump(index_data, f, indent=4)
+                
+        except Exception as e:
+            print(f"Error removing job {job_id} from index: {e}")
 
     ###############################
     # jobs.json MANAGMENT FUNCTIONS
@@ -267,6 +284,12 @@ class Experiment(BaseLabResource):
                     continue
                 if data.get("experiment_id", "") != self.id:
                     continue
+                
+                # Exclude DELETED jobs from the index
+                job_status = data.get("status", "")
+                if job_status == "DELETED":
+                    continue
+                
                 job_type = data.get("type", "UNKNOWN")
                 results.setdefault(job_type, []).append(entry)
 
