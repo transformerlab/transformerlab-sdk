@@ -361,7 +361,8 @@ class Experiment(BaseLabResource):
                         exp = cls(experiment_id)
                         exp.rebuild_jobs_index(workspace_dir=workspace_dir)
                     except Exception as e:
-                
+                        print(f"Error rebuilding cache for experiment {experiment_id} in workspace {workspace_dir}: {e}")
+
                 # Sleep for a short time before checking again
                 time.sleep(1)
             except Exception as e:
