@@ -60,9 +60,19 @@ class Job(BaseLabResource):
             "progress": 0,
         }
 
-    def set_experiment(self, experiment_id: str):
+    def set_experiment(self, experiment_id: str, sync_rebuild: bool = False):
         self._update_json_data_field("experiment_id", experiment_id)
         self.update_job_data_field("experiment_name", experiment_id)
+        
+        # Trigger cache rebuild for the experiment to discover this job
+        try:
+            from .experiment import Experiment
+            from .dirs import get_workspace_dir
+            exp = Experiment(experiment_id)
+            exp._trigger_cache_rebuild(workspace_dir=get_workspace_dir(), sync=sync_rebuild)
+        except Exception:
+            # Don't fail if cache rebuild trigger fails
+            pass
 
     def update_progress(self, progress: int):
         """

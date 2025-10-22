@@ -4,7 +4,7 @@ import threading
 import time
 from werkzeug.utils import secure_filename
 
-from .dirs import get_experiments_dir, get_jobs_dir, get_workspace_dir
+from .dirs import get_experiments_dir, get_jobs_dir
 from .labresource import BaseLabResource
 from .job import Job
 import json
@@ -122,9 +122,6 @@ class Experiment(BaseLabResource):
         # Create job with next available job_id and associate the new job with this experiment
         new_job = Job.create(new_job_id)
         new_job.set_experiment(self.id)
-
-        # Trigger background cache rebuild (non-blocking)
-        self._trigger_cache_rebuild(workspace_dir=get_workspace_dir())
 
         return new_job
 
@@ -420,14 +417,18 @@ class Experiment(BaseLabResource):
                 print(f"Error in background cache rebuild worker: {e}")
                 time.sleep(5)  # Wait longer on error
     
-    def _trigger_cache_rebuild(self, workspace_dir):
-        """Trigger a background cache rebuild for this experiment."""
-        # Start background thread if not running
-        self._start_background_cache_rebuild()
-                
-        # Add to pending queue with jobs directory (non-blocking)
-        with self._cache_rebuild_lock:
-            self._cache_rebuild_pending.add((self.id, workspace_dir))
+    def _trigger_cache_rebuild(self, workspace_dir, sync=False):
+        """Trigger a cache rebuild for this experiment."""
+        if sync:
+            # Run synchronously (useful for tests)
+            self.rebuild_jobs_index(workspace_dir=workspace_dir)
+        else:
+            # Start background thread if not running
+            self._start_background_cache_rebuild()
+                    
+            # Add to pending queue with jobs directory (non-blocking)
+            with self._cache_rebuild_lock:
+                self._cache_rebuild_pending.add((self.id, workspace_dir))
     
     # TODO: For experiments, delete the same way as jobs
     def delete(self):
