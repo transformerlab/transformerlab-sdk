@@ -39,8 +39,6 @@ def test_experiment_dir_and_jobs_index(tmp_path, monkeypatch):
     j2 = Job.create("11")
     j2.set_experiment("exp1")
 
-    # Rebuild index should discover them
-    exp.rebuild_jobs_index()
     all_jobs = exp._get_all_jobs()
     assert set(all_jobs) >= {"10", "11"}
 
@@ -67,7 +65,6 @@ def test_get_jobs_filters(tmp_path, monkeypatch):
     j2.set_experiment("exp2")
     j2.update_status("NOT_STARTED")
 
-    exp.rebuild_jobs_index()
     # get all
     jobs = exp.get_jobs()
     assert isinstance(jobs, list)

@@ -254,9 +254,11 @@ class Experiment(BaseLabResource):
     def _get_cached_jobs_data(self):
         """
         Get cached job data from jobs.json file.
+        If the file doesn't exist, create it with default structure.
         """
+        jobs_json_path = self._jobs_json_file()
         try:
-            with open(self._jobs_json_file(), "r") as f:
+            with open(jobs_json_path, "r") as f:
                 jobs_data = json.load(f)
                 # Handle both old format (just index) and new format (with cached_jobs)
                 if "cached_jobs" in jobs_data:
@@ -264,15 +266,30 @@ class Experiment(BaseLabResource):
                 else:
                     # Old format - return empty dict
                     return {}
+        except FileNotFoundError:
+            # Rebuild jobs index to discover and create jobs.json
+            self.rebuild_jobs_index()
+            # Try to read the newly created file
+            try:
+                with open(jobs_json_path, "r") as f:
+                    jobs_data = json.load(f)
+                    if "cached_jobs" in jobs_data:
+                        return jobs_data["cached_jobs"]
+                    else:
+                        return {}
+            except Exception:
+                return {}
         except Exception:
             return {}
 
     def _get_all_jobs(self):
         """
         Amalgamates all jobs in the index file.
+        If the file doesn't exist, create it with default structure.
         """
+        jobs_json_path = self._jobs_json_file()
         try:
-            with open(self._jobs_json_file(), "r") as f:
+            with open(jobs_json_path, "r") as f:
                 jobs_data = json.load(f)
                 # Handle both old format (just index) and new format (with index key)
                 if "index" in jobs_data:
@@ -284,16 +301,35 @@ class Experiment(BaseLabResource):
                     if isinstance(value, list):
                         results.extend(value)
                 return results
+        except FileNotFoundError:
+            # Rebuild jobs index to discover and create jobs.json
+            self.rebuild_jobs_index()
+            # Try to read the newly created file
+            try:
+                with open(jobs_json_path, "r") as f:
+                    jobs_data = json.load(f)
+                    if "index" in jobs_data:
+                        jobs = jobs_data["index"]
+                    else:
+                        jobs = jobs_data
+                    results = []
+                    for key, value in jobs.items():
+                        if isinstance(value, list):
+                            results.extend(value)
+                    return results
+            except Exception:
+                return []
         except Exception:
             return []
 
     def _get_jobs_of_type(self, type="TRAIN"):
         """ "
         Returns all jobs of a specific type in this experiment's index file.
+        If the file doesn't exist, create it with default structure.
         """
+        jobs_json_path = self._jobs_json_file()
         try:
-            file = self._jobs_json_file()
-            with open(file, "r") as f:
+            with open(jobs_json_path, "r") as f:
                 jobs_data = json.load(f)
                 # Handle both old format (just index) and new format (with index key)
                 if "index" in jobs_data:
@@ -302,6 +338,21 @@ class Experiment(BaseLabResource):
                     jobs = jobs_data  # Old format
                 result = jobs.get(type, [])
                 return result
+        except FileNotFoundError:
+            # Rebuild jobs index to discover and create jobs.json
+            self.rebuild_jobs_index()
+            # Try to read the newly created file
+            try:
+                with open(jobs_json_path, "r") as f:
+                    jobs_data = json.load(f)
+                    if "index" in jobs_data:
+                        jobs = jobs_data["index"]
+                    else:
+                        jobs = jobs_data
+                    result = jobs.get(type, [])
+                    return result
+            except Exception:
+                return []
         except Exception as e:
             print("Failed getting jobs:", e)
             return []
