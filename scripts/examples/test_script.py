@@ -164,6 +164,19 @@ def train():
         except Exception:
             pass
         
+        # Save the trained model
+        model_dir = os.path.join(training_config["output_dir"], "final_model")
+        os.makedirs(model_dir, exist_ok=True)
+        
+        # Create dummy model files to simulate a saved model
+        with open(os.path.join(model_dir, "config.json"), "w") as f:
+            f.write('{"model": "SmolLM-135M-Instruct", "params": 135000000}')
+        with open(os.path.join(model_dir, "pytorch_model.bin"), "w") as f:
+            f.write("dummy binary model data")
+        
+        saved_path = lab.save_model(model_dir, name="trained_model")
+        lab.log(f"✅ Model saved to job models directory: {saved_path}")
+        
         print("Complete")
 
         # Complete the job in TransformerLab via facade
@@ -176,6 +189,7 @@ def train():
             "output_dir": os.path.join(
                 training_config["output_dir"], f"final_model_{lab.job.id}"
             ),
+            "saved_model_path": saved_path,
             "wandb_url": captured_wandb_url,
         }
 
