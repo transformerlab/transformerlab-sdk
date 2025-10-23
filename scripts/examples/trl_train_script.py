@@ -411,7 +411,6 @@ def train_with_trl(quick_test=True, checkpoint=None, parent_job_id=None):
 
 
 if __name__ == "__main__":
-    import sys
     
     parser = argparse.ArgumentParser(description="Train a model with optional checkpoint resume.")
     parser.add_argument("--quick-training", action="store_true", help="Run in quick test mode")
