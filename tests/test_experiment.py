@@ -31,16 +31,15 @@ def test_experiment_dir_and_jobs_index(tmp_path, monkeypatch):
     assert os.path.isfile(jobs_index_file)
     with open(jobs_index_file) as f:
         data = json.load(f)
-    assert "TRAIN" in data
+    assert "index" in data
+    assert "TRAIN" in data["index"]
 
     # Create two jobs and assign to experiment
     j1 = Job.create("10")
-    j1.set_experiment("exp1")
+    j1.set_experiment("exp1", sync_rebuild=True)
     j2 = Job.create("11")
-    j2.set_experiment("exp1")
+    j2.set_experiment("exp1", sync_rebuild=True)
 
-    # Rebuild index should discover them
-    exp.rebuild_jobs_index()
     all_jobs = exp._get_all_jobs()
     assert set(all_jobs) >= {"10", "11"}
 
@@ -60,14 +59,13 @@ def test_get_jobs_filters(tmp_path, monkeypatch):
     exp = Experiment.create("exp2")
 
     j1 = Job.create("21")
-    j1.set_experiment("exp2")
+    j1.set_experiment("exp2", sync_rebuild=True)
     j1.update_status("RUNNING")
 
     j2 = Job.create("22")
-    j2.set_experiment("exp2")
+    j2.set_experiment("exp2", sync_rebuild=True)
     j2.update_status("NOT_STARTED")
 
-    exp.rebuild_jobs_index()
     # get all
     jobs = exp.get_jobs()
     assert isinstance(jobs, list)
@@ -127,4 +125,3 @@ def test_experiment_config_validation(tmp_path, monkeypatch):
     except TypeError:
         # Expected behavior - should raise TypeError for non-dict config
         pass
-

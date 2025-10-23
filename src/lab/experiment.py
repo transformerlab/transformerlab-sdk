@@ -1,5 +1,7 @@
 import os
 import shutil
+import threading
+import time
 from werkzeug.utils import secure_filename
 
 from .dirs import get_experiments_dir, get_jobs_dir
@@ -14,6 +16,11 @@ class Experiment(BaseLabResource):
     """
 
     DEFAULT_JOBS_INDEX = {"TRAIN": []}
+    
+    # Class-level cache for background rebuild tracking
+    _cache_rebuild_pending = set()  # set of (experiment_id, workspace_dir) tuples
+    _cache_rebuild_lock = threading.Lock()
+    _cache_rebuild_thread = None
 
     def __init__(self, experiment_id, create_new=False):
         self.id = experiment_id
@@ -34,9 +41,12 @@ class Experiment(BaseLabResource):
 
         # Create a empty jobs index and write
         jobs_json_path = self._jobs_json_file()
-        empty_jobs_list = self.DEFAULT_JOBS_INDEX
+        empty_jobs_data = {
+            "index": self.DEFAULT_JOBS_INDEX,
+            "cached_jobs": {}
+        }
         with open(jobs_json_path, "w") as f:
-            json.dump(empty_jobs_list, f, indent=4)
+            json.dump(empty_jobs_data, f, indent=4)
 
     def update_config_field(self, key, value):
         """Update a single key in config."""
@@ -116,14 +126,12 @@ class Experiment(BaseLabResource):
         new_job = Job.create(new_job_id)
         new_job.set_experiment(self.id)
 
-        # Update jobs index now that a new job exists
-        self.rebuild_jobs_index()
-
         return new_job
 
     def get_jobs(self, type: str = "", status: str = ""):
         """
-        Get a list of IDs for jobs stored in this experiment.
+        Get a list of jobs stored in this experiment.
+        Uses cached data from jobs.json for completed jobs, only reads individual files for RUNNING jobs.
         type: If not blank, filter by jobs with this type.
         status: If not blank, filter by jobs with this status.
         """
@@ -135,13 +143,22 @@ class Experiment(BaseLabResource):
         else:
             job_list = self._get_all_jobs()
 
+        # Get cached job data from jobs.json
+        cached_jobs = self._get_cached_jobs_data()
+        
         # Iterate through the job list to return Job objects for valid jobs.
         # Also filter for status if that parameter was passed.
         results = []
         for job_id in job_list:
             try:
-                job = Job.get(job_id)
-                job_json = job.get_json_data()
+                # Check if job is in cache (non-RUNNING jobs are cached)
+                if job_id in cached_jobs:
+                    # Use cached data for completed jobs
+                    job_json = cached_jobs[job_id]
+                else:
+                    # Job not in cache, must be RUNNING - read individual file for real-time progress
+                    job = Job.get(job_id)
+                    job_json = job.get_json_data()
             except Exception:
                 continue
 
@@ -164,22 +181,31 @@ class Experiment(BaseLabResource):
     # Index for tracking which jobs belong to this Experiment
     ###############################
 
-    def _jobs_json_file(self):
+    def _jobs_json_file(self, workspace_dir=None, experiment_id = None):
         """
         Path to jobs.json index file for this experiment.
         """
+        if workspace_dir and experiment_id:
+            return os.path.join(workspace_dir, "experiments", experiment_id, "jobs.json")
+
         return os.path.join(self.get_dir(), "jobs.json")
 
-    def rebuild_jobs_index(self):
+    def rebuild_jobs_index(self, workspace_dir=None):
         results = {}
+        cached_jobs = {}
         try:
+            # Use provided jobs_dir or get current one
+            if workspace_dir:
+                jobs_directory = os.path.join(workspace_dir, "jobs")
+            else:
+                jobs_directory = get_jobs_dir()
+            
             # Iterate through jobs directories and check for index.json
             # Sort entries numerically since job IDs are numeric strings (descending order)
-            job_entries = os.listdir(get_jobs_dir())
+            job_entries = os.listdir(jobs_directory)
             sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'), reverse=True)
-            
             for entry in sorted_entries:
-                entry_path = os.path.join(get_jobs_dir(), entry)
+                entry_path = os.path.join(jobs_directory, entry)
                 if not os.path.isdir(entry_path):
                     continue
                 # Prefer the latest snapshot if available; fall back to index.json
@@ -192,14 +218,27 @@ class Experiment(BaseLabResource):
                     continue
                 if data.get("experiment_id", "") != self.id:
                     continue
+                
+                # Skip deleted jobs
+                if data.get("status") == "DELETED":
+                    continue
+                    
                 job_type = data.get("type", "UNKNOWN")
                 results.setdefault(job_type, []).append(entry)
+                
+                # Store full job data in cache (except for RUNNING jobs which need real-time updates)
+                if data.get("status") != "RUNNING":
+                    cached_jobs[entry] = data
 
-            # Write discovered index to jobs.json
+            # Write discovered index to jobs.json with both structure and cached data
+            jobs_data = {
+                "index": results,
+                "cached_jobs": cached_jobs
+            }
             if results:
                 try:
-                    with open(self._jobs_json_file(), "w") as out:
-                        json.dump(results, out, indent=4)
+                    with open(self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id), "w") as out:
+                        json.dump(jobs_data, out, indent=4)
                 except Exception as e:
                     print(f"Error writing jobs index: {e}")
                     pass
@@ -207,42 +246,187 @@ class Experiment(BaseLabResource):
             print(f"Error rebuilding jobs index: {e}")
             pass
 
+    def _get_cached_jobs_data(self):
+        """
+        Get cached job data from jobs.json file.
+        If the file doesn't exist, create it with default structure.
+        """
+        jobs_json_path = self._jobs_json_file()
+        try:
+            with open(jobs_json_path, "r") as f:
+                jobs_data = json.load(f)
+                # Handle both old format (just index) and new format (with cached_jobs)
+                if "cached_jobs" in jobs_data:
+                    return jobs_data["cached_jobs"]
+                else:
+                    # Old format - return empty dict
+                    return {}
+        except FileNotFoundError:
+            # Rebuild jobs index to discover and create jobs.json
+            self.rebuild_jobs_index()
+            # Try to read the newly created file
+            try:
+                with open(jobs_json_path, "r") as f:
+                    jobs_data = json.load(f)
+                    if "cached_jobs" in jobs_data:
+                        return jobs_data["cached_jobs"]
+                    else:
+                        return {}
+            except Exception:
+                return {}
+        except Exception:
+            return {}
+
     def _get_all_jobs(self):
         """
         Amalgamates all jobs in the index file.
+        If the file doesn't exist, create it with default structure.
         """
+        jobs_json_path = self._jobs_json_file()
         try:
-            with open(self._jobs_json_file(), "r") as f:
-                jobs = json.load(f)
+            with open(jobs_json_path, "r") as f:
+                jobs_data = json.load(f)
+                # Handle both old format (just index) and new format (with index key)
+                if "index" in jobs_data:
+                    jobs = jobs_data["index"]
+                else:
+                    jobs = jobs_data  # Old format
                 results = []
                 for key, value in jobs.items():
                     if isinstance(value, list):
                         results.extend(value)
                 return results
+        except FileNotFoundError:
+            # Rebuild jobs index to discover and create jobs.json
+            self.rebuild_jobs_index()
+            # Try to read the newly created file
+            try:
+                with open(jobs_json_path, "r") as f:
+                    jobs_data = json.load(f)
+                    if "index" in jobs_data:
+                        jobs = jobs_data["index"]
+                    else:
+                        jobs = jobs_data
+                    results = []
+                    for key, value in jobs.items():
+                        if isinstance(value, list):
+                            results.extend(value)
+                    return results
+            except Exception:
+                return []
         except Exception:
             return []
 
     def _get_jobs_of_type(self, type="TRAIN"):
         """ "
         Returns all jobs of a specific type in this experiment's index file.
+        If the file doesn't exist, create it with default structure.
         """
+        jobs_json_path = self._jobs_json_file()
         try:
-            file = self._jobs_json_file()
-            with open(file, "r") as f:
-                jobs = json.load(f)
+            with open(jobs_json_path, "r") as f:
+                jobs_data = json.load(f)
+                # Handle both old format (just index) and new format (with index key)
+                if "index" in jobs_data:
+                    jobs = jobs_data["index"]
+                else:
+                    jobs = jobs_data  # Old format
                 result = jobs.get(type, [])
                 return result
+        except FileNotFoundError:
+            # Rebuild jobs index to discover and create jobs.json
+            self.rebuild_jobs_index()
+            # Try to read the newly created file
+            try:
+                with open(jobs_json_path, "r") as f:
+                    jobs_data = json.load(f)
+                    if "index" in jobs_data:
+                        jobs = jobs_data["index"]
+                    else:
+                        jobs = jobs_data
+                    result = jobs.get(type, [])
+                    return result
+            except Exception:
+                return []
         except Exception as e:
             print("Failed getting jobs:", e)
             return []
 
     def _add_job(self, job_id, type):
-        with open(self._jobs_json_file(), "r") as f:
-            jobs = json.load(f)
-            if type in jobs:
-                jobs[type].append(job_id)
-            else:
-                jobs[type] = [job_id]
+        try:
+            with open(self._jobs_json_file(), "r") as f:
+                jobs_data = json.load(f)
+        except Exception:
+            jobs_data = {"index": {}, "cached_jobs": {}}
+        
+        # Handle both old and new format
+        if "index" in jobs_data:
+            jobs = jobs_data["index"]
+        else:
+            jobs = jobs_data
+            jobs_data = {"index": jobs, "cached_jobs": {}}
+        
+        if type in jobs:
+            jobs[type].append(job_id)
+        else:
+            jobs[type] = [job_id]
+        
+        # Update the file with new structure
+        with open(self._jobs_json_file(), "w") as f:
+            json.dump(jobs_data, f, indent=4)
+        
+        # Trigger background cache rebuild
+        self._trigger_cache_rebuild()
+    
+    @classmethod
+    def _start_background_cache_rebuild(cls):
+        """Start the background cache rebuild thread if not already running."""
+        with cls._cache_rebuild_lock:
+            if cls._cache_rebuild_thread is None or not cls._cache_rebuild_thread.is_alive():
+                cls._cache_rebuild_thread = threading.Thread(
+                    target=cls._background_cache_rebuild_worker,
+                    daemon=True
+                )
+                cls._cache_rebuild_thread.start()
+    
+    @classmethod
+    def _background_cache_rebuild_worker(cls):
+        """Background worker that rebuilds caches for pending experiments."""
+        print("STARTING CACHE REBUILD WORKER")
+        while True:
+            try:
+                # Get pending experiments with their workspace directories
+                with cls._cache_rebuild_lock:
+                    pending_experiments = set(cls._cache_rebuild_pending)
+                    cls._cache_rebuild_pending.clear()
+                
+                # Rebuild caches for pending experiments
+                for experiment_id, workspace_dir in pending_experiments:
+                    try:
+                        
+                        exp = cls(experiment_id)
+                        exp.rebuild_jobs_index(workspace_dir=workspace_dir)
+                    except Exception as e:
+                        print(f"Error rebuilding cache for experiment {experiment_id} in workspace {workspace_dir}: {e}")
+
+                # Sleep for a short time before checking again
+                time.sleep(1)
+            except Exception as e:
+                print(f"Error in background cache rebuild worker: {e}")
+                time.sleep(5)  # Wait longer on error
+    
+    def _trigger_cache_rebuild(self, workspace_dir, sync=False):
+        """Trigger a cache rebuild for this experiment."""
+        if sync:
+            # Run synchronously (useful for tests)
+            self.rebuild_jobs_index(workspace_dir=workspace_dir)
+        else:
+            # Start background thread if not running
+            self._start_background_cache_rebuild()
+                    
+            # Add to pending queue with jobs directory (non-blocking)
+            with self._cache_rebuild_lock:
+                self._cache_rebuild_pending.add((self.id, workspace_dir))
     
     # TODO: For experiments, delete the same way as jobs
     def delete(self):

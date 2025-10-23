@@ -3,6 +3,7 @@ from werkzeug.utils import secure_filename
 
 from . import dirs
 from .labresource import BaseLabResource
+from .dirs import get_workspace_dir
 
 
 class Job(BaseLabResource):
@@ -59,9 +60,19 @@ class Job(BaseLabResource):
             "progress": 0,
         }
 
-    def set_experiment(self, experiment_id: str):
+    def set_experiment(self, experiment_id: str, sync_rebuild: bool = False):
         self._update_json_data_field("experiment_id", experiment_id)
         self.update_job_data_field("experiment_name", experiment_id)
+        
+        # Trigger cache rebuild for the experiment to discover this job
+        try:
+            from .experiment import Experiment
+            from .dirs import get_workspace_dir
+            exp = Experiment(experiment_id)
+            exp._trigger_cache_rebuild(workspace_dir=get_workspace_dir(), sync=sync_rebuild)
+        except Exception:
+            # Don't fail if cache rebuild trigger fails
+            pass
 
     def update_progress(self, progress: int):
         """
@@ -77,7 +88,21 @@ class Job(BaseLabResource):
 
         status: str representing the status of the job
         """
+        old_status = self.get_status()
         self._update_json_data_field("status", status)
+        
+        # Only trigger cache rebuild if job transitions from RUNNING to completed
+        # (since we don't cache RUNNING jobs, but we do cache completed jobs)
+        if old_status == "RUNNING" and status != "RUNNING":
+            try:
+                from .experiment import Experiment
+                experiment_id = self.get_experiment_id()
+                if experiment_id:
+                    exp = Experiment(experiment_id)
+                    exp._trigger_cache_rebuild(workspace_dir=get_workspace_dir())
+            except Exception:
+                # Don't fail if cache rebuild trigger fails
+                pass
 
     def get_status(self):
         """
@@ -292,3 +317,15 @@ class Job(BaseLabResource):
         Mark this job as deleted.
         """
         self.update_status("DELETED")
+        
+        # Trigger cache rebuild since deleted jobs are removed from cache
+        # This is non-blocking - just adds to pending queue
+        try:
+            from .experiment import Experiment
+            experiment_id = self.get_experiment_id()
+            if experiment_id:
+                exp = Experiment(experiment_id)
+                exp._trigger_cache_rebuild(workspace_dir=get_workspace_dir())
+        except Exception:
+            # Don't fail if cache rebuild trigger fails
+            pass
