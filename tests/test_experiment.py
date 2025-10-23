@@ -31,7 +31,8 @@ def test_experiment_dir_and_jobs_index(tmp_path, monkeypatch):
     assert os.path.isfile(jobs_index_file)
     with open(jobs_index_file) as f:
         data = json.load(f)
-    assert "TRAIN" in data
+    assert "index" in data
+    assert "TRAIN" in data["index"]
 
     # Create two jobs and assign to experiment
     j1 = Job.create("10")
@@ -124,4 +125,3 @@ def test_experiment_config_validation(tmp_path, monkeypatch):
     except TypeError:
         # Expected behavior - should raise TypeError for non-dict config
         pass
-
