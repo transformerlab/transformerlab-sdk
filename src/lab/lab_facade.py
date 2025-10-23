@@ -37,6 +37,7 @@ class Lab:
         
         if existing_job_id:
             # Use existing job from environment variable
+            # This will raise an error if the job doesn't exist
             self._experiment = Experiment(experiment_id, create_new=False)
             self._job = Job.get(existing_job_id)
             if self._job is None:
