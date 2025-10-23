@@ -88,21 +88,18 @@ class Job(BaseLabResource):
 
         status: str representing the status of the job
         """
-        old_status = self.get_status()
         self._update_json_data_field("status", status)
         
-        # Only trigger cache rebuild if job transitions from RUNNING to completed
-        # (since we don't cache RUNNING jobs, but we do cache completed jobs)
-        if old_status == "RUNNING" and status != "RUNNING":
-            try:
-                from .experiment import Experiment
-                experiment_id = self.get_experiment_id()
-                if experiment_id:
-                    exp = Experiment(experiment_id)
-                    exp._trigger_cache_rebuild(workspace_dir=get_workspace_dir())
-            except Exception:
-                # Don't fail if cache rebuild trigger fails
-                pass
+        # Trigger rebuild on every status update
+        try:
+            from .experiment import Experiment
+            experiment_id = self.get_experiment_id()
+            if experiment_id:
+                exp = Experiment(experiment_id)
+                exp._trigger_cache_rebuild(workspace_dir=get_workspace_dir())
+        except Exception:
+            # Don't fail if cache rebuild trigger fails
+            pass
 
     def get_status(self):
         """
