@@ -204,10 +204,7 @@ class Experiment(BaseLabResource):
             # Sort entries numerically since job IDs are numeric strings (descending order)
             job_entries = os.listdir(jobs_directory)
             sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'), reverse=True)
-            print(f"SORTED ENTRIES: {sorted_entries}")
-            print(f"GETTING JOBS DATA FOR EXPERIMENT {self.id}")
             for entry in sorted_entries:
-                print(f"GETTING JOBS DATA FOR JOB {entry}")
                 entry_path = os.path.join(jobs_directory, entry)
                 if not os.path.isdir(entry_path):
                     continue
@@ -216,7 +213,6 @@ class Experiment(BaseLabResource):
                 try:
                     with open(index_file, "r", encoding="utf-8") as lf:
                         data = json.load(lf)
-                    print(f"LOADED JOBS DATA FOR JOB {entry}: {data}")
                 except Exception as e:
                     print(f"Error loading index.json: {e}")
                     continue
@@ -239,7 +235,6 @@ class Experiment(BaseLabResource):
                 "index": results,
                 "cached_jobs": cached_jobs
             }
-            print(f"WRITING JOBS DATA: {jobs_data}")
             if results:
                 try:
                     with open(self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id), "w") as out:
