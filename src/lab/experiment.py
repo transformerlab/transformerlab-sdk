@@ -4,7 +4,7 @@ import threading
 import time
 from werkzeug.utils import secure_filename
 
-from .dirs import get_experiments_dir, get_jobs_dir
+from .dirs import get_experiments_dir, get_jobs_dir, get_workspace_dir
 from .labresource import BaseLabResource
 from .job import Job
 import json
@@ -155,15 +155,24 @@ class Experiment(BaseLabResource):
                 if job_id in cached_jobs:
                     # Use cached data for completed jobs
                     job_json = cached_jobs[job_id]
+                    print("GETTING JOB JSON FOR JOB with status: ", job_json.get("status", ""), " and ID: ", job_id)
                     # Check status of job if not RUNNING, LAUNCHING or NOT_STARTED, then remove from cache
-                    if job_json.get("status", "") not in ["RUNNING", "LAUNCHING", "NOT_STARTED"]:
+                    if job_json.get("status", "") in ["RUNNING", "LAUNCHING", "NOT_STARTED"]:
+                        old_status = job_json.get("status", "")
                         del cached_jobs[job_id]
                         job = Job.get(job_id)
                         job_json = job.get_json_data()
+                        # Trigger rebuild cache if old status and new status are different
+                        if old_status != job_json.get("status", ""):
+                            self._trigger_cache_rebuild(get_workspace_dir())
+                        
                 else:
-                    # Job not in cache, must be RUNNING - read individual file for real-time progress
+                    # Job not in cache
                     job = Job.get(job_id)
                     job_json = job.get_json_data()
+                    # Check if job is COMPLETE, STOPPED or FAILED, then update cache
+                    if job_json.get("status", "") in ["COMPLETE", "STOPPED", "FAILED"]:
+                        self._trigger_cache_rebuild(get_workspace_dir())
             except Exception:
                 continue
 
@@ -381,7 +390,7 @@ class Experiment(BaseLabResource):
             json.dump(jobs_data, f, indent=4)
         
         # Trigger background cache rebuild
-        self._trigger_cache_rebuild()
+        self._trigger_cache_rebuild(get_workspace_dir())
     
     @classmethod
     def _start_background_cache_rebuild(cls):
@@ -452,3 +461,5 @@ class Experiment(BaseLabResource):
                 job.delete()
             except Exception:
                 pass  # Job might not exist
+        
+        self._trigger_cache_rebuild(get_workspace_dir())

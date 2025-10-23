@@ -10,6 +10,10 @@ from time import sleep
 
 from lab import lab
 
+# Login to huggingface
+from huggingface_hub import login
+login(token=os.getenv("HF_TOKEN"))
+
 
 def train_with_trl(quick_test=True):
     """Training function using HuggingFace SFTTrainer with automatic wandb detection
