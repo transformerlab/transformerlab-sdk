@@ -190,6 +190,63 @@ def train_with_trl(quick_test=True):
                 else:
                     trainer.train()
                     lab.log("✅ Training completed with SFTTrainer")
+                    
+                    # Save checkpoints and artifacts after full training
+                    lab.log("Saving training checkpoints and artifacts...")
+                    
+                    # Create 5 fake checkpoints to simulate training progression
+                    for epoch in range(1, 6):
+                        checkpoint_file = os.path.join(training_config["output_dir"], f"checkpoint_epoch_{epoch}.txt")
+                        with open(checkpoint_file, "w") as f:
+                            f.write(f"Training checkpoint for epoch {epoch}\n")
+                            f.write(f"Model state: epoch_{epoch}\n")
+                            f.write(f"Loss: {0.5 - epoch * 0.08:.3f}\n")
+                            f.write(f"Accuracy: {0.6 + epoch * 0.08:.3f}\n")
+                            f.write(f"Timestamp: {datetime.now()}\n")
+                            f.write(f"Training step: {epoch * 100}\n")
+                            f.write(f"Learning rate: {training_config['_config']['lr']}\n")
+                        
+                        # Save checkpoint using lab facade
+                        saved_checkpoint_path = lab.save_checkpoint(checkpoint_file, f"epoch_{epoch}_checkpoint.txt")
+                        lab.log(f"Saved checkpoint: {saved_checkpoint_path}")
+                    
+                    # Create 2 additional artifacts for full training
+                    # Artifact 1: Training progress summary
+                    progress_file = os.path.join(training_config["output_dir"], "training_progress_summary.json")
+                    with open(progress_file, "w") as f:
+                        f.write('{\n')
+                        f.write('  "training_type": "SFTTrainer",\n')
+                        f.write('  "total_epochs": 5,\n')
+                        f.write('  "final_loss": 0.10,\n')
+                        f.write('  "final_accuracy": 0.95,\n')
+                        f.write(f'  "model_name": "{training_config["model_name"]}",\n')
+                        f.write(f'  "dataset": "{training_config["dataset"]}",\n')
+                        f.write(f'  "completed_at": "{datetime.now().isoformat()}"\n')
+                        f.write('}\n')
+                    
+                    progress_artifact_path = lab.save_artifact(progress_file, "training_progress_summary.json")
+                    lab.log(f"Saved training progress: {progress_artifact_path}")
+                    
+                    # Artifact 2: Model performance metrics
+                    metrics_file = os.path.join(training_config["output_dir"], "model_performance_metrics.json")
+                    with open(metrics_file, "w") as f:
+                        f.write('{\n')
+                        f.write('  "performance_metrics": {\n')
+                        f.write('    "training_loss": [0.45, 0.37, 0.29, 0.21, 0.10],\n')
+                        f.write('    "training_accuracy": [0.68, 0.76, 0.84, 0.91, 0.95],\n')
+                        f.write('    "validation_loss": [0.48, 0.40, 0.32, 0.24, 0.12],\n')
+                        f.write('    "validation_accuracy": [0.65, 0.73, 0.81, 0.88, 0.93]\n')
+                        f.write('  },\n')
+                        f.write('  "training_config": {\n')
+                        f.write(f'    "learning_rate": {training_config["_config"]["lr"]},\n')
+                        f.write(f'    "batch_size": {training_config["_config"]["batch_size"]},\n')
+                        f.write(f'    "num_epochs": {training_config["_config"]["num_train_epochs"]},\n')
+                        f.write(f'    "warmup_ratio": {training_config["_config"]["warmup_ratio"]}\n')
+                        f.write('  }\n')
+                        f.write('}\n')
+                    
+                    metrics_artifact_path = lab.save_artifact(metrics_file, "model_performance_metrics.json")
+                    lab.log(f"Saved performance metrics: {metrics_artifact_path}")
             else:
                 # Simulate training
                 lab.log("Simulating training...")
@@ -198,6 +255,36 @@ def train_with_trl(quick_test=True):
                     sleep(0.5 if quick_test else 1)
                     lab.log(f"Training step {i + 1}/{steps}")
                     lab.update_progress(60 + (i + 1) * (30 // steps))
+                    
+                    # Save fake checkpoint every 2 steps
+                    if (i + 1) % 2 == 0:
+                        checkpoint_file = os.path.join(training_config["output_dir"], f"checkpoint_step_{i + 1}.txt")
+                        with open(checkpoint_file, "w") as f:
+                            f.write(f"Fake checkpoint for step {i + 1}\n")
+                            f.write(f"Model state: step_{i + 1}\n")
+                            f.write(f"Loss: {0.5 - (i + 1) * 0.1:.3f}\n")
+                            f.write(f"Accuracy: {0.6 + (i + 1) * 0.1:.3f}\n")
+                            f.write(f"Timestamp: {datetime.now()}\n")
+                        
+                        # Save checkpoint using lab facade
+                        saved_checkpoint_path = lab.save_checkpoint(checkpoint_file, f"step_{i + 1}_checkpoint.txt")
+                        lab.log(f"Saved checkpoint: {saved_checkpoint_path}")
+                        
+                        # Save some fake artifacts
+                        artifact_file = os.path.join(training_config["output_dir"], f"training_metrics_step_{i + 1}.json")
+                        with open(artifact_file, "w") as f:
+                            f.write('{\n')
+                            f.write(f'  "step": {i + 1},\n')
+                            f.write(f'  "loss": {0.5 - (i + 1) * 0.1:.3f},\n')
+                            f.write(f'  "accuracy": {0.6 + (i + 1) * 0.1:.3f},\n')
+                            f.write(f'  "learning_rate": {training_config["_config"]["lr"]},\n')
+                            f.write(f'  "batch_size": {training_config["_config"]["batch_size"]},\n')
+                            f.write(f'  "timestamp": "{datetime.now().isoformat()}"\n')
+                            f.write('}\n')
+                        
+                        # Save artifact using lab facade
+                        saved_artifact_path = lab.save_artifact(artifact_file, f"metrics_step_{i + 1}.json")
+                        lab.log(f"Saved artifact: {saved_artifact_path}")
                     
                     # Log some fake metrics to wandb if available
                     try:
@@ -225,6 +312,44 @@ def train_with_trl(quick_test=True):
         training_duration = end_time - start_time
         lab.log(f"Training completed in {training_duration}")
         
+        # Save final artifacts
+        final_model_file = os.path.join(training_config["output_dir"], "final_model_summary.txt")
+        with open(final_model_file, "w") as f:
+            f.write("Final Model Summary\n")
+            f.write("==================\n")
+            f.write(f"Training Duration: {training_duration}\n")
+            f.write("Final Loss: 0.15\n")
+            f.write("Final Accuracy: 0.92\n")
+            f.write(f"Model: {training_config['model_name']}\n")
+            f.write(f"Dataset: {training_config['dataset']}\n")
+            f.write(f"Completed at: {end_time}\n")
+        
+        # Save final model as artifact
+        final_model_path = lab.save_artifact(final_model_file, "final_model_summary.txt")
+        lab.log(f"Saved final model summary: {final_model_path}")
+        
+        # Save training configuration as artifact
+        config_file = os.path.join(training_config["output_dir"], "training_config.json")
+        import json
+        with open(config_file, "w") as f:
+            json.dump(training_config, f, indent=2)
+        
+        config_artifact_path = lab.save_artifact(config_file, "training_config.json")
+        lab.log(f"Saved training config: {config_artifact_path}")
+        
+        # Save the trained model
+        model_dir = os.path.join(training_config["output_dir"], "final_model")
+        os.makedirs(model_dir, exist_ok=True)
+        
+        # Create dummy model files to simulate a saved model
+        with open(os.path.join(model_dir, "config.json"), "w") as f:
+            f.write('{"model": "SmolLM-135M-Instruct", "params": 135000000}')
+        with open(os.path.join(model_dir, "pytorch_model.bin"), "w") as f:
+            f.write("dummy binary model data")
+        
+        saved_path = lab.save_model(model_dir, name="trained_model")
+        lab.log(f"✅ Model saved to job models directory: {saved_path}")
+        
         # Get the captured wandb URL from job data for reporting
         job_data = lab.job.get_job_data()
         captured_wandb_url = job_data.get("wandb_run_url", "None")
@@ -249,6 +374,7 @@ def train_with_trl(quick_test=True):
             "job_id": lab.job.id,
             "duration": str(training_duration),
             "output_dir": training_config["output_dir"],
+            "saved_model_path": saved_path,
             "wandb_url": captured_wandb_url,
             "trainer_type": "SFTTrainer" if 'trainer' in locals() else "simulated",
             "mode": "quick_test" if quick_test else "full_training",

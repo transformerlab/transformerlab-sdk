@@ -155,6 +155,11 @@ class Experiment(BaseLabResource):
                 if job_id in cached_jobs:
                     # Use cached data for completed jobs
                     job_json = cached_jobs[job_id]
+                    # Check status of job if not RUNNING, LAUNCHING or NOT_STARTED, then remove from cache
+                    if job_json.get("status", "") not in ["RUNNING", "LAUNCHING", "NOT_STARTED"]:
+                        del cached_jobs[job_id]
+                        job = Job.get(job_id)
+                        job_json = job.get_json_data()
                 else:
                     # Job not in cache, must be RUNNING - read individual file for real-time progress
                     job = Job.get(job_id)
@@ -214,7 +219,7 @@ class Experiment(BaseLabResource):
                     with open(index_file, "r", encoding="utf-8") as lf:
                         data = json.load(lf)
                 except Exception as e:
-                    print(f"Error loading index.json: {e}")
+                    print(f"Error loading index.json for job {entry_path}: {e}")
                     continue
                 if data.get("experiment_id", "") != self.id:
                     continue
