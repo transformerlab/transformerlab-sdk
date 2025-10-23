@@ -213,7 +213,6 @@ class Lab:
         Returns:
             The destination path on disk.
         """
-        print("DEBUG: Using SDK lab_facade save_model")
         self._ensure_initialized()
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
