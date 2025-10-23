@@ -179,7 +179,7 @@ class Model(BaseLabResource):
             "adaptor_name": None,
             "parameters": None,
             "start_time": "",
-            "end_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             "md5_checksums": md5_objects,
         }
         

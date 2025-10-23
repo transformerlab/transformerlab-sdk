@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from time import time
+import time
 from typing import Optional, Dict, Any
 import os
 import shutil
@@ -295,7 +295,7 @@ class Lab:
                 "adaptor_name": job_data.get("adaptor_name", None),
                 "parameters": job_data.get("_config", {}),
                 "start_time": job_data.get("start_time", ""),
-                "end_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                 "md5_checksums": md5_objects,
 
 
