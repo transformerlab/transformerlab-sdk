@@ -296,6 +296,7 @@ class Lab:
                 "parameters": job_data.get("_config", {}),
                 "start_time": job_data.get("start_time", ""),
                 "end_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                 "md5_checksums": md5_objects,
 
 
