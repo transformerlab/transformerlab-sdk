@@ -155,7 +155,6 @@ class Experiment(BaseLabResource):
                 if job_id in cached_jobs:
                     # Use cached data for completed jobs
                     job_json = cached_jobs[job_id]
-                    print("GETTING JOB JSON FOR JOB with status: ", job_json.get("status", ""), " and ID: ", job_id)
                     # Check status of job if not RUNNING, LAUNCHING or NOT_STARTED, then remove from cache
                     if job_json.get("status", "") in ["RUNNING", "LAUNCHING", "NOT_STARTED"]:
                         old_status = job_json.get("status", "")
