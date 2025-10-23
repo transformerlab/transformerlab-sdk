@@ -28,13 +28,30 @@ class Lab:
     # ------------- lifecycle -------------
     def init(self, experiment_id: str = "alpha") -> None:
         """
-        Initialize a new job under the given experiment.
-        Creates the experiment structure if needed and creates a new job.
+        Initialize a job under the given experiment.
+        If _TFL_JOB_ID environment variable is set, uses that existing job.
+        Otherwise, creates the experiment structure if needed and creates a new job.
         """
-        self._experiment = Experiment(experiment_id, create_new=True)
-        self._job = self._experiment.create_job()
-        self._job.set_experiment(experiment_id)
-        self._job.update_status("IN_PROGRESS")
+        # Check if we should use an existing job from environment variable
+        existing_job_id = os.environ.get('_TFL_JOB_ID')
+        
+        if existing_job_id:
+            # Use existing job from environment variable
+            # This will raise an error if the job doesn't exist
+            self._experiment = Experiment(experiment_id, create_new=False)
+            self._job = Job.get(existing_job_id)
+            if self._job is None:
+                raise RuntimeError(f"Job with ID {existing_job_id} not found. Check _TFL_JOB_ID environment variable.")
+            print(f"Using existing job ID: {existing_job_id}")
+        else:
+            # Create new job as before
+            self._experiment = Experiment(experiment_id, create_new=True)
+            self._job = self._experiment.create_job()
+            self._job.set_experiment(experiment_id)
+            print(f"Created new job ID: {self._job.id}")
+        
+        # Update status to RUNNING for both cases
+        self._job.update_status("RUNNING")
         
         # Check for wandb integration and capture URL if available
         self._detect_and_capture_wandb_url()
