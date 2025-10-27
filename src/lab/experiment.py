@@ -128,7 +128,7 @@ class Experiment(BaseLabResource):
 
         return new_job
 
-    def get_jobs(self, type: str = "", status: str = ""):
+    def get_jobs(self, type: str = "", status: str = "", cookies=None):
         """
         Get a list of jobs stored in this experiment.
         Uses cached data from jobs.json for completed jobs, only reads individual files for RUNNING jobs.
@@ -185,6 +185,10 @@ class Experiment(BaseLabResource):
 
             # If it passed filters then add as long as it has job_data
             if "job_data" in job_json:
+                # Check for shutdown_after_completion for COMPLETE or FAILED jobs
+                if job_json.get("status", "") in ["COMPLETE", "FAILED"] and cookies:
+                    self._handle_remote_shutdown_if_enabled(job_json, cookies)
+                
                 results.append(job_json)
 
         return results
@@ -462,3 +466,80 @@ class Experiment(BaseLabResource):
                 pass  # Job might not exist
         
         self._trigger_cache_rebuild(get_workspace_dir())
+    
+    def _handle_remote_shutdown_if_enabled(self, job_json, cookies=None):
+        """
+        Check if a completed job has shutdown_after_completion enabled and trigger shutdown.
+        If successful, remove the shutdown flag from job data and cache.
+        """
+        try:
+            job_data = job_json.get("job_data", {})
+            shutdown_after_completion = job_data.get("shutdown_after_completion", False)
+            
+            if not shutdown_after_completion:
+                return
+            
+            # Get cluster name from job data
+            cluster_name = job_data.get("cluster_name")
+            if not cluster_name:
+                print(f"Warning: Job {job_json.get('id')} has shutdown_after_completion enabled but no cluster_name")
+                return
+            
+            # Call the remote shutdown API
+            import requests
+            import os
+            
+            # Get orchestrator URL from environment variables
+            gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
+            gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
+            
+            if not gpu_orchestrator_url or not gpu_orchestrator_port:
+                print(f"Warning: GPU orchestrator environment variables not set, cannot shutdown cluster {cluster_name}")
+                return
+            
+            # Prepare shutdown request
+            shutdown_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/down"
+            payload = {
+                "cluster_name": cluster_name,
+                "tlab_job_id": job_json.get("id"),
+            }
+            
+            # Prepare headers and cookies
+            headers = {"Content-Type": "application/json"}
+            
+            # Convert cookies from FastAPI format to requests format
+            cookies_dict = {}
+            if cookies:
+                for cookie_name, cookie_value in cookies.items():
+                    cookies_dict[cookie_name] = cookie_value
+            
+            response = requests.post(
+                shutdown_url,
+                headers=headers,
+                json=payload,
+                cookies=cookies_dict,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                print(f"Successfully shut down cluster {cluster_name} for job {job_json.get('id')}")
+                
+                # Remove the shutdown flag from job data
+                job_id = job_json.get("id")
+                if job_id:
+                    try:
+                        job = Job.get(job_id)
+                        job_data_copy = job_data.copy()
+                        job_data_copy.pop("shutdown_after_completion", None)
+                        job.set_job_data(job_data_copy)
+                        
+                        # Trigger cache rebuild to update cached data
+                        self._trigger_cache_rebuild(get_workspace_dir())
+                    except Exception as e:
+                        print(f"Error updating job data after shutdown: {e}")
+            else:
+                print(f"Failed to shutdown cluster {cluster_name}: {response.status_code} - {response.text}")
+                
+        except Exception as e:
+            print(f"Error handling remote shutdown for job {job_json.get('id')}: {e}")
+            print(f"Error handling remote shutdown for job {job_json.get('id')}")
