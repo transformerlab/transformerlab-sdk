@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import os
 import json
-import shutil
 from datetime import datetime
 from . import storage
 

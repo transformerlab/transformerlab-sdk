@@ -3,7 +3,6 @@ from __future__ import annotations
 from time import time
 from typing import Optional, Dict, Any
 import os
-import shutil
 
 from .experiment import Experiment
 from .job import Job
