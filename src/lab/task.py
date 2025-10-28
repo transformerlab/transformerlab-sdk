@@ -58,7 +58,33 @@ class Task(BaseLabResource):
 
     def get_metadata(self):
         """Get task metadata"""
-        return self.get_json_data()
+        data = self.get_json_data()
+        
+        # Fix experiment_id if it's a digit - convert to experiment name
+        if data.get("experiment_id") and str(data["experiment_id"]).isdigit():
+            experiment_name = self._get_experiment_name_by_id(data["experiment_id"])
+            if experiment_name:
+                data["experiment_id"] = experiment_name
+                # Save the corrected data back to the file
+                self._set_json_data(data)
+        
+        return data
+    
+    def _get_experiment_name_by_id(self, experiment_id):
+        """Get experiment name by ID, return None if not found"""
+        try:
+            from .experiment import Experiment
+            
+            # Get all experiments and search for one with matching db_experiment_id
+            all_experiments = Experiment.get_all()
+            for exp_data in all_experiments:
+                if exp_data.get("db_experiment_id") == int(experiment_id):
+                    return exp_data.get("name", experiment_id)
+            
+            # If no match found, return the original ID
+            return experiment_id
+        except Exception:
+            return experiment_id
 
     @staticmethod
     def list_all():

@@ -96,7 +96,13 @@ class BaseLabResource(ABC):
         # On any error return an empty dict
         try:
             with open(json_file, "r", encoding="utf-8") as f:
-                return json.load(f)
+                content = f.read()
+                # Clean the content - remove trailing whitespace and extra characters
+                content = content.strip()
+                # Remove any trailing % characters (common in some shell outputs)
+                content = content.rstrip('%')
+                content = content.strip()
+                return json.loads(content)
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
