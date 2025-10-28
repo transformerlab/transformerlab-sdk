@@ -3,6 +3,7 @@ import os
 import json
 import shutil
 from datetime import datetime
+from . import storage
 
 
 class BaseLabResource(ABC):
@@ -39,13 +40,13 @@ class BaseLabResource(ABC):
         """
         newobj = cls(id)
         resource_dir = newobj.get_dir()
-        if not os.path.isdir(resource_dir):
+        if not storage.isdir(resource_dir):
             raise FileNotFoundError(
                 f"Directory for {cls.__name__} with id '{id}' not found"
             )
         json_file = newobj._get_json_file()
-        if not os.path.exists(json_file):
-            with open(json_file, "w", encoding="utf-8") as f:
+        if not storage.exists(json_file):
+            with storage.open(json_file, "w", encoding="utf-8") as f:
                 json.dump(newobj._default_json(), f)
         return newobj
 
@@ -62,15 +63,15 @@ class BaseLabResource(ABC):
 
         # Create directory for this resource
         dir = self.get_dir()
-        os.makedirs(dir, exist_ok=True)
+        storage.makedirs(dir, exist_ok=True)
 
         # Create a default json file. Throw an error if one already exists.
         json_file = self._get_json_file()
-        if os.path.exists(json_file):
+        if storage.exists(json_file):
             raise FileExistsError(
                 f"{type(self).__name__} with id '{self.id}' already exists"
             )
-        with open(json_file, "w", encoding="utf-8") as f:
+        with storage.open(json_file, "w", encoding="utf-8") as f:
             json.dump(self._default_json(), f)
 
     def _default_json(self):
@@ -95,7 +96,7 @@ class BaseLabResource(ABC):
         # Try opening this file location and parsing the json inside
         # On any error return an empty dict
         try:
-            with open(json_file, "r", encoding="utf-8") as f:
+            with storage.open(json_file, "r", encoding="utf-8") as f:
                 content = f.read()
                 # Clean the content - remove trailing whitespace and extra characters
                 content = content.strip()
@@ -123,7 +124,7 @@ class BaseLabResource(ABC):
 
         # Write directly to index.json
         json_file = self._get_json_file()
-        with open(json_file, "w", encoding="utf-8") as f:
+        with storage.open(json_file, "w", encoding="utf-8") as f:
             json.dump(json_data, f, ensure_ascii=False)
 
     def _get_json_data_field(self, key, default=""):
@@ -143,15 +144,20 @@ class BaseLabResource(ABC):
         This method is idempotent and safe to call multiple times.
         """
         resource_dir = self.get_dir()
-        if not os.path.exists(resource_dir):
+        if not storage.exists(resource_dir):
             return
 
         # Check if we already have a single index.json file
         index_file = self._get_json_file()
-        if os.path.exists(index_file):
+        if storage.exists(index_file):
             # Check if there are any timestamped files to migrate
             has_timestamped_files = False
-            for filename in os.listdir(resource_dir):
+            try:
+                entries = storage.ls(resource_dir, detail=False)
+            except Exception:
+                entries = []
+            for entry in entries:
+                filename = entry.rstrip("/").split("/")[-1]
                 if filename.startswith("index-") and filename.endswith(".json"):
                     has_timestamped_files = True
                     break
@@ -165,20 +171,25 @@ class BaseLabResource(ABC):
         
         # First, try to use latest.txt if it exists
         latest_txt_path = os.path.join(resource_dir, "latest.txt")
-        if os.path.exists(latest_txt_path):
+        if storage.exists(latest_txt_path):
             try:
-                with open(latest_txt_path, "r", encoding="utf-8") as lf:
+                with storage.open(latest_txt_path, "r", encoding="utf-8") as lf:
                     latest_filename = lf.read().strip()
                     if latest_filename:
                         candidate_path = os.path.join(resource_dir, latest_filename)
-                        if os.path.isfile(candidate_path):
+                        if storage.isfile(candidate_path):
                             latest_file = candidate_path
             except Exception:
                 pass
 
         # If no latest.txt or file doesn't exist, find the most recent by timestamp
         if not latest_file:
-            for filename in os.listdir(resource_dir):
+            try:
+                entries = storage.ls(resource_dir, detail=False)
+            except Exception:
+                entries = []
+            for entry in entries:
+                filename = entry.rstrip("/").split("/")[-1]
                 if filename.startswith("index-") and filename.endswith(".json"):
                     try:
                         # Extract timestamp from filename
@@ -192,22 +203,27 @@ class BaseLabResource(ABC):
                         continue
 
         # If we found a latest file, migrate it to index.json
-        if latest_file and os.path.exists(latest_file):
+        if latest_file and storage.exists(latest_file):
             try:
-                with open(latest_file, "r", encoding="utf-8") as f:
+                with storage.open(latest_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 
                 # Write to index.json
-                with open(index_file, "w", encoding="utf-8") as f:
+                with storage.open(index_file, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False)
                 
                 # Clean up timestamped files and latest.txt
-                for filename in os.listdir(resource_dir):
+                try:
+                    entries = storage.ls(resource_dir, detail=False)
+                except Exception:
+                    entries = []
+                for entry in entries:
+                    filename = entry.rstrip("/").split("/")[-1]
                     if filename.startswith("index-") and filename.endswith(".json"):
-                        os.remove(os.path.join(resource_dir, filename))
+                        storage.rm(os.path.join(resource_dir, filename))
                 
-                if os.path.exists(latest_txt_path):
-                    os.remove(latest_txt_path)
+                if storage.exists(latest_txt_path):
+                    storage.rm(latest_txt_path)
                     
             except Exception:
                 # If migration fails, leave everything as is
@@ -219,5 +235,5 @@ class BaseLabResource(ABC):
         TODO: We should change to soft delete
         """
         resource_dir = self.get_dir()
-        if os.path.exists(resource_dir):
-            shutil.rmtree(resource_dir)
+        if storage.exists(resource_dir):
+            storage.rm_tree(resource_dir)

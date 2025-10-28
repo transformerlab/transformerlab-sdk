@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from . import dirs
 from .labresource import BaseLabResource
 from .dirs import get_workspace_dir
+from . import storage
 
 
 class Job(BaseLabResource):
@@ -28,7 +29,7 @@ class Job(BaseLabResource):
         # Default location for log file
         log_path = os.path.join(self.get_dir(), f"output_{self.id}.txt")
 
-        if not os.path.exists(log_path):
+        if not storage.exists(log_path):
             # Then check if there is a path explicitly set in the job data
             try:
                 job_data = self.get_job_data()
@@ -41,8 +42,8 @@ class Job(BaseLabResource):
 
         # Make sure whatever log_path we return actually exists
         # Put an empty file there if not
-        if not os.path.exists(log_path):
-            with open(log_path, "w") as f:
+        if not storage.exists(log_path):
+            with storage.open(log_path, "w") as f:
                 f.write("")
 
         return log_path
@@ -164,12 +165,12 @@ class Job(BaseLabResource):
         # Read existing content, append new message, and write back to log file
         try:
             log_path = self.get_log_path()
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            storage.makedirs(os.path.dirname(log_path), exist_ok=True)
             
             # Read existing content if file exists
             existing_content = ""
-            if os.path.exists(log_path):
-                with open(log_path, "r", encoding="utf-8") as f:
+            if storage.exists(log_path):
+                with storage.open(log_path, "r", encoding="utf-8") as f:
                     existing_content = f.read()
             
             # Append new message to existing content on a new line
@@ -178,9 +179,9 @@ class Job(BaseLabResource):
             new_content = existing_content + message_str
             
             # Write back the complete content
-            with open(log_path, "w", encoding="utf-8") as f:
+            with storage.open(log_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
-                f.flush()  # Ensure immediate write to disk, especially important in fused file systems
+                f.flush()
         except Exception:
             # Best-effort file logging; ignore file errors to avoid crashing job
             pass
@@ -216,17 +217,20 @@ class Job(BaseLabResource):
         """
         count = 0
         jobs_dir = dirs.get_jobs_dir()
-        if os.path.exists(jobs_dir):
-            for entry in os.listdir(jobs_dir):
-                job_path = os.path.join(jobs_dir, entry)
-                if os.path.isdir(job_path):
-                    try:
-                        job = cls.get(entry)
-                        job_data = job.get_json_data()
-                        if job_data.get("status") == "RUNNING":
-                            count += 1
-                    except Exception:
-                        pass
+        try:
+            entries = storage.ls(jobs_dir, detail=False)
+        except Exception:
+            entries = []
+        for job_path in entries:
+            if storage.isdir(job_path):
+                entry = job_path.rstrip("/").split("/")[-1]
+                try:
+                    job = cls.get(entry)
+                    job_data = job.get_json_data()
+                    if job_data.get("status") == "RUNNING":
+                        count += 1
+                except Exception:
+                    pass
         return count
 
     @classmethod
@@ -237,22 +241,23 @@ class Job(BaseLabResource):
         """
         queued_jobs = []
         jobs_dir = dirs.get_jobs_dir()
-        if os.path.exists(jobs_dir):
-            for entry in os.listdir(jobs_dir):
-                job_path = os.path.join(jobs_dir, entry)
-                if os.path.isdir(job_path):
-                    try:
-                        job = cls.get(entry)
-                        job_data = job.get_json_data()
-                        if job_data.get("status") == "QUEUED":
-                            # Use filesystem creation time for sorting
-                            creation_time = os.path.getctime(job_path)
-                            queued_jobs.append((creation_time, job_data))
-                    except Exception:
-                        pass
+        try:
+            entries = storage.ls(jobs_dir, detail=False)
+        except Exception:
+            entries = []
+        for job_path in entries:
+            if storage.isdir(job_path):
+                entry = job_path.rstrip("/").split("/")[-1]
+                try:
+                    job = cls.get(entry)
+                    job_data = job.get_json_data()
+                    if job_data.get("status") == "QUEUED":
+                        # Without ctime in object stores, sort lexicographically by job id
+                        queued_jobs.append((int(entry) if entry.isdigit() else 0, job_data))
+                except Exception:
+                    pass
         
         if queued_jobs:
-            # Sort by creation time and return the oldest
             queued_jobs.sort(key=lambda x: x[0])
             return queued_jobs[0][1]
         return None
@@ -277,11 +282,14 @@ class Job(BaseLabResource):
         try:
             # Scan the checkpoints directory
             checkpoints_dir = self.get_checkpoints_dir()
-            if os.path.exists(checkpoints_dir):
+            if storage.exists(checkpoints_dir):
                 checkpoint_files = []
-                for item in os.listdir(checkpoints_dir):
-                    item_path = os.path.join(checkpoints_dir, item)
-                    if os.path.isfile(item_path):
+                try:
+                    items = storage.ls(checkpoints_dir, detail=False)
+                except Exception:
+                    items = []
+                for item_path in items:
+                    if storage.isfile(item_path):
                         checkpoint_files.append(item_path)
                 return sorted(checkpoint_files)
             
@@ -298,11 +306,14 @@ class Job(BaseLabResource):
         try:
             # Scan the artifacts directory
             artifacts_dir = self.get_artifacts_dir()
-            if os.path.exists(artifacts_dir):
+            if storage.exists(artifacts_dir):
                 artifact_files = []
-                for item in os.listdir(artifacts_dir):
-                    item_path = os.path.join(artifacts_dir, item)
-                    if os.path.isfile(item_path):
+                try:
+                    items = storage.ls(artifacts_dir, detail=False)
+                except Exception:
+                    items = []
+                for item_path in items:
+                    if storage.isfile(item_path):
                         artifact_files.append(item_path)
                 return sorted(artifact_files)
         except Exception:

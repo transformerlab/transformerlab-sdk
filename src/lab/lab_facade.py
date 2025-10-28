@@ -9,6 +9,7 @@ from .experiment import Experiment
 from .job import Job
 from . import dirs
 from .model import Model as ModelService
+from . import storage
 
 class Lab:
     """
@@ -126,15 +127,15 @@ class Lab:
         dest = os.path.join(artifacts_dir, base_name)
 
         # Create parent directories
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        storage.makedirs(os.path.dirname(dest), exist_ok=True)
 
         # Copy file or directory
         if os.path.isdir(src):
-            if os.path.exists(dest):
-                shutil.rmtree(dest)
-            shutil.copytree(src, dest)
+            if storage.exists(dest):
+                storage.rm_tree(dest)
+            storage.copy_dir(src, dest)
         else:
-            shutil.copy2(src, dest)
+            storage.copy_file(src, dest)
 
         # Track in job_data
         try:
@@ -169,15 +170,15 @@ class Lab:
         dest = os.path.join(ckpts_dir, base_name)
 
         # Create parent directories
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        storage.makedirs(os.path.dirname(dest), exist_ok=True)
 
         # Copy file or directory
         if os.path.isdir(src):
-            if os.path.exists(dest):
-                shutil.rmtree(dest)
-            shutil.copytree(src, dest)
+            if storage.exists(dest):
+                storage.rm_tree(dest)
+            storage.copy_dir(src, dest)
         else:
-            shutil.copy2(src, dest)
+            storage.copy_file(src, dest)
 
         # Track in job_data and update latest pointer
         try:
@@ -233,15 +234,15 @@ class Lab:
         dest = os.path.join(models_dir, base_name)
         
         # Create parent directories
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        storage.makedirs(os.path.dirname(dest), exist_ok=True)
 
         # Copy file or directory
         if os.path.isdir(src):
-            if os.path.exists(dest):
-                shutil.rmtree(dest)
-            shutil.copytree(src, dest)
+            if storage.exists(dest):
+                storage.rm_tree(dest)
+            storage.copy_dir(src, dest)
         else:
-            shutil.copy2(src, dest)
+            storage.copy_file(src, dest)
         
         # Create Model metadata so it appears in Model Zoo
         try:

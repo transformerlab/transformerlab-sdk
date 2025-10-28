@@ -8,6 +8,7 @@ from .dirs import get_experiments_dir, get_jobs_dir, get_workspace_dir
 from .labresource import BaseLabResource
 from .job import Job
 import json
+from . import storage
 
 
 class Experiment(BaseLabResource):
@@ -25,7 +26,7 @@ class Experiment(BaseLabResource):
     def __init__(self, experiment_id, create_new=False):
         self.id = experiment_id
         # Auto-initialize if create_new=True and experiment doesn't exist
-        if create_new and (not os.path.exists(self.get_dir()) or not os.path.exists(self._get_json_file())):
+        if create_new and (not storage.exists(self.get_dir()) or not storage.exists(self._get_json_file())):
             self._initialize()
 
     def get_dir(self):
@@ -45,7 +46,7 @@ class Experiment(BaseLabResource):
             "index": self.DEFAULT_JOBS_INDEX,
             "cached_jobs": {}
         }
-        with open(jobs_json_path, "w") as f:
+        with storage.open(jobs_json_path, "w") as f:
             json.dump(empty_jobs_data, f, indent=4)
 
     def update_config_field(self, key, value):
@@ -89,18 +90,21 @@ class Experiment(BaseLabResource):
         """Get all experiments as list of dicts."""
         experiments = []
         exp_root = get_experiments_dir()
-        if os.path.exists(exp_root):
-            for entry in os.listdir(exp_root):
-                exp_path = os.path.join(exp_root, entry)
-                if os.path.isdir(exp_path):
-                    index_file = os.path.join(exp_path, "index.json")
-                    if os.path.exists(index_file):
-                        try:
-                            with open(index_file, "r") as f:
+        if storage.exists(exp_root):
+            try:
+                entries = storage.ls(exp_root, detail=False)
+            except Exception:
+                entries = []
+            for exp_path in entries:
+                try:
+                    if storage.isdir(exp_path):
+                        index_file = os.path.join(exp_path, "index.json")
+                        if storage.exists(index_file):
+                            with storage.open(index_file, "r") as f:
                                 data = json.load(f)
                             experiments.append(data)
-                        except Exception:
-                            pass
+                except Exception:
+                    pass
         return experiments
 
     def create_job(self):
@@ -112,13 +116,17 @@ class Experiment(BaseLabResource):
         # Scan the jobs directory for subdirectories with numberic names
         # Find the largest number and increment to get the new job ID
         largest_numeric_subdir = 0
-        for entry in os.listdir(get_jobs_dir()):
-            if entry.isdigit():
-                full_path = os.path.join(get_jobs_dir(), entry)
-                if os.path.isdir(full_path):
-                    job_id = int(entry)
-                    if job_id > largest_numeric_subdir:
-                        largest_numeric_subdir = job_id
+        jobs_dir = get_jobs_dir()
+        try:
+            entries = storage.ls(jobs_dir, detail=False)
+        except Exception:
+            entries = []
+        for full_path in entries:
+            entry = full_path.rstrip("/").split("/")[-1]
+            if entry.isdigit() and storage.isdir(full_path):
+                job_id = int(entry)
+                if job_id > largest_numeric_subdir:
+                    largest_numeric_subdir = job_id
 
         new_job_id = largest_numeric_subdir + 1
 
@@ -215,16 +223,20 @@ class Experiment(BaseLabResource):
             
             # Iterate through jobs directories and check for index.json
             # Sort entries numerically since job IDs are numeric strings (descending order)
-            job_entries = os.listdir(jobs_directory)
+            try:
+                job_entries_full = storage.ls(jobs_directory, detail=False)
+            except Exception:
+                job_entries_full = []
+            job_entries = [p.rstrip("/").split("/")[-1] for p in job_entries_full]
             sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'), reverse=True)
             for entry in sorted_entries:
                 entry_path = os.path.join(jobs_directory, entry)
-                if not os.path.isdir(entry_path):
+                if not storage.isdir(entry_path):
                     continue
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = os.path.join(entry_path, "index.json")
                 try:
-                    with open(index_file, "r", encoding="utf-8") as lf:
+                    with storage.open(index_file, "r", encoding="utf-8") as lf:
                         data = json.load(lf)
                 except Exception as e:
                     print(f"Error loading index.json for job {entry_path}: {e}")
@@ -250,7 +262,7 @@ class Experiment(BaseLabResource):
             }
             if results:
                 try:
-                    with open(self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id), "w") as out:
+                    with storage.open(self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id), "w") as out:
                         json.dump(jobs_data, out, indent=4)
                 except Exception as e:
                     print(f"Error writing jobs index: {e}")
@@ -266,7 +278,7 @@ class Experiment(BaseLabResource):
         """
         jobs_json_path = self._jobs_json_file()
         try:
-            with open(jobs_json_path, "r") as f:
+            with storage.open(jobs_json_path, "r") as f:
                 jobs_data = json.load(f)
                 # Handle both old format (just index) and new format (with cached_jobs)
                 if "cached_jobs" in jobs_data:
@@ -279,7 +291,7 @@ class Experiment(BaseLabResource):
             self.rebuild_jobs_index()
             # Try to read the newly created file
             try:
-                with open(jobs_json_path, "r") as f:
+                with storage.open(jobs_json_path, "r") as f:
                     jobs_data = json.load(f)
                     if "cached_jobs" in jobs_data:
                         return jobs_data["cached_jobs"]
@@ -297,7 +309,7 @@ class Experiment(BaseLabResource):
         """
         jobs_json_path = self._jobs_json_file()
         try:
-            with open(jobs_json_path, "r") as f:
+            with storage.open(jobs_json_path, "r") as f:
                 jobs_data = json.load(f)
                 # Handle both old format (just index) and new format (with index key)
                 if "index" in jobs_data:
@@ -314,7 +326,7 @@ class Experiment(BaseLabResource):
             self.rebuild_jobs_index()
             # Try to read the newly created file
             try:
-                with open(jobs_json_path, "r") as f:
+                with storage.open(jobs_json_path, "r") as f:
                     jobs_data = json.load(f)
                     if "index" in jobs_data:
                         jobs = jobs_data["index"]
@@ -337,7 +349,7 @@ class Experiment(BaseLabResource):
         """
         jobs_json_path = self._jobs_json_file()
         try:
-            with open(jobs_json_path, "r") as f:
+            with storage.open(jobs_json_path, "r") as f:
                 jobs_data = json.load(f)
                 # Handle both old format (just index) and new format (with index key)
                 if "index" in jobs_data:
@@ -351,7 +363,7 @@ class Experiment(BaseLabResource):
             self.rebuild_jobs_index()
             # Try to read the newly created file
             try:
-                with open(jobs_json_path, "r") as f:
+                with storage.open(jobs_json_path, "r") as f:
                     jobs_data = json.load(f)
                     if "index" in jobs_data:
                         jobs = jobs_data["index"]
@@ -385,7 +397,7 @@ class Experiment(BaseLabResource):
             jobs[type] = [job_id]
         
         # Update the file with new structure
-        with open(self._jobs_json_file(), "w") as f:
+        with storage.open(self._jobs_json_file(), "w") as f:
             json.dump(jobs_data, f, indent=4)
         
         # Trigger background cache rebuild
@@ -448,8 +460,8 @@ class Experiment(BaseLabResource):
         self.delete_all_jobs()
         # Delete the experiment directory
         exp_dir = self.get_dir()
-        if os.path.exists(exp_dir):
-            shutil.rmtree(exp_dir)
+        if storage.exists(exp_dir):
+            storage.rm_tree(exp_dir)
 
     def delete_all_jobs(self):
         """Delete all jobs associated with this experiment."""
