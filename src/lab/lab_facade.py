@@ -47,6 +47,7 @@ class Lab:
             # Create new job as before
             self._experiment = Experiment(experiment_id, create_new=True)
             self._job = self._experiment.create_job()
+            self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
             self._job.set_experiment(experiment_id)
             print(f"Created new job ID: {self._job.id}")
         
@@ -295,7 +296,7 @@ class Lab:
                 "adaptor_name": job_data.get("adaptor_name", None),
                 "parameters": job_data.get("_config", {}),
                 "start_time": job_data.get("start_time", ""),
-                "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                 "md5_checksums": md5_objects,
 
 
