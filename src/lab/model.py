@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 
 from .dirs import get_models_dir
 from .labresource import BaseLabResource
+from . import storage
 
 
 class Model(BaseLabResource):
@@ -45,14 +46,18 @@ class Model(BaseLabResource):
         """List all models in the filesystem, similar to dataset service"""
         results = []
         models_dir = get_models_dir()
-        if not os.path.isdir(models_dir):
+        if not storage.isdir(models_dir):
             return results
-        for entry in os.listdir(models_dir):
-            full = os.path.join(models_dir, entry)
-            if not os.path.isdir(full):
+        try:
+            entries = storage.ls(models_dir, detail=False)
+        except Exception:
+            entries = []
+        for full in entries:
+            if not storage.isdir(full):
                 continue
             # Attempt to read index.json (or latest snapshot)
             try:
+                entry = full.rstrip("/").split("/")[-1]
                 model = Model(entry)
                 results.append(model.get_metadata())
             except Exception:
@@ -77,11 +82,11 @@ class Model(BaseLabResource):
         """
         architecture = "Unknown"
         
-        if os.path.isdir(model_path):
+        if storage.isdir(model_path):
             config_path = os.path.join(model_path, "config.json")
-            if os.path.exists(config_path):
+            if storage.exists(config_path):
                 try:
-                    with open(config_path, 'r') as f:
+                    with storage.open(config_path, 'r') as f:
                         config = json.load(f)
                         architectures = config.get("architectures", [])
                         if architectures:
@@ -124,25 +129,39 @@ class Model(BaseLabResource):
         
         def compute_md5(file_path):
             md5 = hashlib.md5()
-            with open(file_path, "rb") as f:
+            with storage.open(file_path, "rb") as f:
                 while chunk := f.read(8192):
                     md5.update(chunk)
             return md5.hexdigest()
 
         md5_objects = []
 
-        if not os.path.isdir(model_path):
+        if not storage.isdir(model_path):
             print(f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation")
             return md5_objects
 
-        for root, _, files in os.walk(model_path):
-            for file in files:
-                file_path = os.path.join(root, file)
+        # Use fsspec's walk equivalent for directory traversal
+        try:
+            files = storage.find(model_path)
+            for file_path in files:
                 try:
                     md5_hash = compute_md5(file_path)
                     md5_objects.append({"file_path": file_path, "md5_hash": md5_hash})
                 except Exception as e:
                     print(f"Warning: Could not compute MD5 for {file_path}: {str(e)}")
+        except Exception:
+            # Fallback: if find doesn't work, try listing the directory
+            try:
+                entries = storage.ls(model_path, detail=False)
+                for entry in entries:
+                    if storage.isfile(entry):
+                        try:
+                            md5_hash = compute_md5(entry)
+                            md5_objects.append({"file_path": entry, "md5_hash": md5_hash})
+                        except Exception as e:
+                            print(f"Warning: Could not compute MD5 for {entry}: {str(e)}")
+            except Exception:
+                pass
 
         return md5_objects
 
@@ -189,7 +208,7 @@ class Model(BaseLabResource):
 
         # Write provenance to file
         provenance_path = os.path.join(model_path, "_tlab_provenance.json")
-        with open(provenance_path, "w") as f:
+        with storage.open(provenance_path, "w") as f:
             json.dump(final_provenance, f, indent=2)
 
         return provenance_path
@@ -231,7 +250,7 @@ class Model(BaseLabResource):
         model_description["json_data"].update(json_data)
 
         # Output the json to the file
-        with open(os.path.join(self.get_dir(), "index.json"), "w") as outfile:
+        with storage.open(os.path.join(self.get_dir(), "index.json"), "w") as outfile:
             json.dump(model_description, outfile)
 
         return model_description
