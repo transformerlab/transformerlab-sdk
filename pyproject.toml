@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "transformerlab"
-version = "0.0.39"
+version = "0.0.40"
 description = "Python SDK for Transformer Lab"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Transformer Lab", email = "developers@transformerlab.ai" }]
 license = { file = "LICENSE" }
-dependencies = ["werkzeug", "pytest"]
+dependencies = ["werkzeug", "pytest", "fsspec"]
 
 [project.urls]
 "Homepage" = "https://github.com/transformerlab/transformerlab-sdk"
