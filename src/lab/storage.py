@@ -119,23 +119,43 @@ def open(path: str, mode: str = "r", **kwargs):
 
 
 def copy_file(src: str, dest: str) -> None:
-    # Use fsspec's built-in copy method
-    _fs.copy(src, dest)
+    """Copy a single file from src to dest across arbitrary filesystems."""
+    # Use streaming copy to be robust across different filesystems
+    with fsspec.open(src, "rb") as r, fsspec.open(dest, "wb") as w:
+        for chunk in iter_chunks(r):
+            w.write(chunk)
+
+
+def iter_chunks(file_obj, chunk_size: int = 8 * 1024 * 1024):
+    """Helper to read file in chunks."""
+    while True:
+        data = file_obj.read(chunk_size)
+        if not data:
+            break
+        yield data
 
 
 def copy_dir(src_dir: str, dest_dir: str) -> None:
+    """Recursively copy a directory tree across arbitrary filesystems."""
     makedirs(dest_dir, exist_ok=True)
-    # Use fsspec's find to get all files and copy them
-    files = _fs.find(src_dir)
-    for src_file in files:
-        # Calculate relative path
+    # Determine the source filesystem independently of destination
+    src_fs, _ = fsspec.core.url_to_fs(src_dir)
+    try:
+        src_files = src_fs.find(src_dir)
+    except Exception:
+        # If find is not available, fall back to listing via walk
+        src_files = []
+        for _, _, files in src_fs.walk(src_dir):
+            for f in files:
+                src_files.append(f)
+
+    for src_file in src_files:
+        # Compute relative path with respect to the source dir
         rel_path = src_file[len(src_dir):].lstrip("/")
         dest_file = join(dest_dir, rel_path)
-        
         # Ensure destination directory exists
-        dest_file_dir = posixpath.dirname(dest_file)
-        if dest_file_dir:
-            makedirs(dest_file_dir, exist_ok=True)
-        
-        # Copy the file
-        _fs.copy(src_file, dest_file)
+        dest_parent = posixpath.dirname(dest_file)
+        if dest_parent:
+            makedirs(dest_parent, exist_ok=True)
+        # Copy the file using streaming (robust across FSes)
+        copy_file(src_file, dest_file)
