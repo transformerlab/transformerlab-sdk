@@ -16,14 +16,13 @@ from huggingface_hub import login
 login(token=os.getenv("HF_TOKEN"))
 
 
-def train_with_trl(quick_test=True, checkpoint=None, parent_job_id=None):
+def train_with_trl(quick_test=True, checkpoint=None):
     """Training function using HuggingFace SFTTrainer with automatic wandb detection
     
     Args:
         quick_test (bool): If True, only initializes trainer and tests wandb detection.
                           If False, actually runs training.
         checkpoint (str): Path to checkpoint to resume from.
-        parent_job_id (str): ID of the parent job if resuming.
     """
     
     # Configure GPU usage - use only GPU 0
@@ -39,7 +38,6 @@ def train_with_trl(quick_test=True, checkpoint=None, parent_job_id=None):
         "log_to_wandb": True,
         "quick_test": quick_test,
         "checkpoint": checkpoint,
-        "parent_job_id": parent_job_id,
         "_config": {
             "dataset_name": "Trelis/touch-rugby-rules",
             "lr": 2e-5,
@@ -415,13 +413,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a model with optional checkpoint resume.")
     parser.add_argument("--quick-training", action="store_true", help="Run in quick test mode")
     parser.add_argument("--resume_from_checkpoint", type=str, help="Path to checkpoint to resume from")
-    parser.add_argument("--parent_job_id", type=str, help="ID of the parent job if resuming")
     
     args = parser.parse_args()
     
     quick_test = args.quick_training
     checkpoint = args.resume_from_checkpoint
-    parent_job_id = args.parent_job_id
     
     if quick_test:
         print("🚀 Running quick test mode...")
@@ -430,8 +426,6 @@ if __name__ == "__main__":
     
     if checkpoint:
         print(f"📁 Resuming from checkpoint: {checkpoint}")
-    if parent_job_id:
-        print(f"🔗 Parent job ID: {parent_job_id}")
-    
-    result = train_with_trl(quick_test=quick_test, checkpoint=checkpoint, parent_job_id=parent_job_id)
+
+    result = train_with_trl(quick_test=quick_test, checkpoint=checkpoint)
     print("Training result:", result)
