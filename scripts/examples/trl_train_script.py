@@ -153,6 +153,7 @@ def train_with_trl(quick_test=True, checkpoint=None):
                 push_to_hub=False,
                 dataset_text_field="text",  # Move dataset_text_field to SFTConfig
                 resume_from_checkpoint=checkpoint if checkpoint else None,
+                bf16=False,  # Disable bf16 for compatibility with older GPUs
             )
             
             # Create SFTTrainer - this will initialize wandb if report_to includes "wandb"
