@@ -16,7 +16,7 @@ from huggingface_hub import login
 login(token=os.getenv("HF_TOKEN"))
 
 
-class TransformerLabCallback(TrainerCallback):
+class LabCallback(TrainerCallback):
     """Custom callback to update TransformerLab progress and save checkpoints"""
     
     def __init__(self):
@@ -36,7 +36,6 @@ class TransformerLabCallback(TrainerCallback):
     def on_step_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         """Called after each training step"""
         if self.total_steps:
-            lab.log(f"Step {state.global_step} of {self.total_steps}")
             progress = int((state.global_step / self.total_steps) * 100)
             progress = min(progress, 95)  # Keep some buffer for final operations
             lab.update_progress(progress)
@@ -115,8 +114,6 @@ def train_with_trl(quick_test=True):
             "max_steps": 3 if quick_test else -1,  # Limit steps for quick test
             "report_to": ["wandb"],  # Enable wandb reporting in SFTTrainer
             "dataloader_num_workers": 0,  # Avoid multiprocessing issues
-            "remove_unused_columns": False,
-            "push_to_hub": False,
         },
     }
 
@@ -217,9 +214,8 @@ def train_with_trl(quick_test=True):
             )
             
             # Create custom callback for TransformerLab integration
-            transformerlab_callback = TransformerLabCallback()
+            transformerlab_callback = LabCallback()
             
-            # Create SFTTrainer - this will initialize wandb if report_to includes "wandb"
             trainer = SFTTrainer(
                 model=model,
                 args=training_args,
@@ -231,20 +227,7 @@ def train_with_trl(quick_test=True):
             lab.log("✅ SFTTrainer created - wandb should be initialized automatically!")
             lab.log("🔍 Checking for wandb URL detection...")
             
-        except ImportError:
-            lab.log("⚠️  TRL not available, using basic training simulation")
-            # Simulate wandb initialization for testing
-            try:
-                import wandb
-                if wandb.run is None:
-                    wandb.init(
-                        project="transformerlab-trl-test",
-                        name=f"trl-sim-{lab.job.id}",
-                        config=training_config["_config"]
-                    )
-                    lab.log("✅ Simulated wandb initialization for testing")
-            except Exception:
-                pass
+
         except Exception as e:
             lab.log(f"Error setting up SFTTrainer: {e}")
             lab.finish("Training failed - trainer setup error")
@@ -256,13 +239,13 @@ def train_with_trl(quick_test=True):
         if quick_test:
             lab.log("🚀 Quick test mode: Initializing SFTTrainer and testing wandb detection...")
         else:
-            lab.log("Starting training with SFTTrainer...")
+            lab.log("Starting training...")
             
         try:
             if 'trainer' in locals():
                 # Real training with SFTTrainer
                 if quick_test:
-                    lab.log("✅ SFTTrainer initialized successfully - testing wandb detection...")
+                    lab.log("✅ SFTTrainer initialized successfully...")
                     # Just test that wandb is initialized, don't actually train
                     lab.log("Quick test: Skipping actual training, just testing wandb URL detection")
                 else:
@@ -270,8 +253,6 @@ def train_with_trl(quick_test=True):
                     trainer.train()
                     lab.log("✅ Training completed with SFTTrainer")
                     
-                    # Note: Checkpoints are now automatically saved via TransformerLabCallback.on_save()
-                    # The trainer automatically saves checkpoints based on save_steps configuration
                     
                     # Create 2 additional artifacts for full training
                     # Artifact 1: Training progress summary
