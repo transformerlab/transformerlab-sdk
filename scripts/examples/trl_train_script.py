@@ -7,12 +7,78 @@ when wandb is initialized within ML frameworks like TRL.
 import os
 from datetime import datetime
 from time import sleep
+from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
 
 from lab import lab
 
 # Login to huggingface
 from huggingface_hub import login
 login(token=os.getenv("HF_TOKEN"))
+
+
+class TransformerLabCallback(TrainerCallback):
+    """Custom callback to update TransformerLab progress and save checkpoints"""
+    
+    def __init__(self):
+        self.training_started = False
+        self.total_steps = None
+        
+    def on_train_begin(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        """Called when training begins"""
+        lab.log("🚀 Training started with HuggingFace Trainer")
+        self.training_started = True
+        if state.max_steps and state.max_steps > 0:
+            self.total_steps = state.max_steps
+        else:
+            # Estimate steps if not provided
+            self.total_steps = 1000
+        
+    def on_step_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        """Called after each training step"""
+        if self.total_steps:
+            lab.log(f"Step {state.global_step} of {self.total_steps}")
+            progress = int((state.global_step / self.total_steps) * 100)
+            progress = min(progress, 95)  # Keep some buffer for final operations
+            lab.update_progress(progress)
+            
+        # Log training metrics if available
+        if state.log_history:
+            latest_log = state.log_history[-1]
+            if "loss" in latest_log:
+                lab.log(f"Step {state.global_step}: loss={latest_log['loss']:.4f}")
+        
+    def on_save(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        """Called when a checkpoint is saved"""
+        lab.log(f"💾 Checkpoint saved at step {state.global_step}")
+        
+        # Attempt to save the checkpoint using lab's checkpoint mechanism
+        if hasattr(args, 'output_dir'):
+            checkpoint_dir = None
+            # Find the most recent checkpoint
+            if os.path.exists(args.output_dir):
+                checkpoints = [d for d in os.listdir(args.output_dir) if d.startswith('checkpoint-')]
+                if checkpoints:
+                    # Sort by checkpoint number
+                    checkpoints.sort(key=lambda x: int(x.split('-')[1]))
+                    latest_checkpoint = checkpoints[-1]
+                    checkpoint_dir = os.path.join(args.output_dir, latest_checkpoint)
+                    
+                    # Save checkpoint to TransformerLab
+                    try:
+                        saved_path = lab.save_checkpoint(checkpoint_dir, f"checkpoint-{state.global_step}")
+                        lab.log(f"✅ Saved checkpoint to TransformerLab: {saved_path}")
+                    except Exception as e:
+                        lab.log(f"⚠️  Could not save checkpoint to TransformerLab: {e}")
+    
+    def on_epoch_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        """Called at the end of each epoch"""
+        if state.epoch:
+            lab.log(f"📊 Completed epoch {int(state.epoch)} / {args.num_train_epochs}")
+    
+    def on_train_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        """Called when training ends"""
+        lab.log("✅ Training completed successfully")
+        lab.update_progress(95)
 
 
 def train_with_trl(quick_test=True):
@@ -126,7 +192,7 @@ def train_with_trl(quick_test=True):
         try:
             from trl import SFTTrainer, SFTConfig
             
-            # SFTConfig with wandb reporting
+            # SFTConfig with wandb reporting and automatic checkpoint saving
             training_args = SFTConfig(
                 output_dir=training_config["output_dir"],
                 num_train_epochs=training_config["_config"]["num_train_epochs"],
@@ -144,7 +210,14 @@ def train_with_trl(quick_test=True):
                 remove_unused_columns=False,
                 push_to_hub=False,
                 dataset_text_field="text",  # Move dataset_text_field to SFTConfig
+                # Enable automatic checkpoint saving
+                save_total_limit=3,  # Keep only the last 3 checkpoints to save disk space
+                save_strategy="steps",  # Save checkpoints every save_steps
+                load_best_model_at_end=False,
             )
+            
+            # Create custom callback for TransformerLab integration
+            transformerlab_callback = TransformerLabCallback()
             
             # Create SFTTrainer - this will initialize wandb if report_to includes "wandb"
             trainer = SFTTrainer(
@@ -152,6 +225,7 @@ def train_with_trl(quick_test=True):
                 args=training_args,
                 train_dataset=dataset["train"],
                 processing_class=tokenizer,
+                callbacks=[transformerlab_callback],  # Add our custom callback
             )
             
             lab.log("✅ SFTTrainer created - wandb should be initialized automatically!")
@@ -192,27 +266,12 @@ def train_with_trl(quick_test=True):
                     # Just test that wandb is initialized, don't actually train
                     lab.log("Quick test: Skipping actual training, just testing wandb URL detection")
                 else:
+                    # Training will automatically save checkpoints via the callback
                     trainer.train()
                     lab.log("✅ Training completed with SFTTrainer")
                     
-                    # Save checkpoints and artifacts after full training
-                    lab.log("Saving training checkpoints and artifacts...")
-                    
-                    # Create 5 fake checkpoints to simulate training progression
-                    for epoch in range(1, 6):
-                        checkpoint_file = os.path.join(training_config["output_dir"], f"checkpoint_epoch_{epoch}.txt")
-                        with open(checkpoint_file, "w") as f:
-                            f.write(f"Training checkpoint for epoch {epoch}\n")
-                            f.write(f"Model state: epoch_{epoch}\n")
-                            f.write(f"Loss: {0.5 - epoch * 0.08:.3f}\n")
-                            f.write(f"Accuracy: {0.6 + epoch * 0.08:.3f}\n")
-                            f.write(f"Timestamp: {datetime.now()}\n")
-                            f.write(f"Training step: {epoch * 100}\n")
-                            f.write(f"Learning rate: {training_config['_config']['lr']}\n")
-                        
-                        # Save checkpoint using lab facade
-                        saved_checkpoint_path = lab.save_checkpoint(checkpoint_file, f"epoch_{epoch}_checkpoint.txt")
-                        lab.log(f"Saved checkpoint: {saved_checkpoint_path}")
+                    # Note: Checkpoints are now automatically saved via TransformerLabCallback.on_save()
+                    # The trainer automatically saves checkpoints based on save_steps configuration
                     
                     # Create 2 additional artifacts for full training
                     # Artifact 1: Training progress summary
