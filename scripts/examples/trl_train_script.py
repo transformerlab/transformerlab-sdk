@@ -5,6 +5,7 @@ when wandb is initialized within ML frameworks like TRL.
 """
 
 import os
+import argparse
 from datetime import datetime
 from time import sleep
 from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
@@ -80,12 +81,13 @@ class LabCallback(TrainerCallback):
         lab.update_progress(95)
 
 
-def train_with_trl(quick_test=True):
+def train_with_trl(quick_test=True, checkpoint=None):
     """Training function using HuggingFace SFTTrainer with automatic wandb detection
     
     Args:
         quick_test (bool): If True, only initializes trainer and tests wandb detection.
                           If False, actually runs training.
+        checkpoint (str): Path to checkpoint to resume from.
     """
     
     # Configure GPU usage - use only GPU 0
@@ -100,6 +102,7 @@ def train_with_trl(quick_test=True):
         "output_dir": "./output",
         "log_to_wandb": True,
         "quick_test": quick_test,
+        "checkpoint": checkpoint,
         "_config": {
             "dataset_name": "Trelis/touch-rugby-rules",
             "lr": 2e-5,
@@ -163,15 +166,15 @@ def train_with_trl(quick_test=True):
         try:
             from transformers import AutoTokenizer, AutoModelForCausalLM
             
-            model_name = training_config["model_name"]
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForCausalLM.from_pretrained(model_name)
+            model_path = training_config["model_name"]
+            tokenizer = AutoTokenizer.from_pretrained(model_path)
+            model = AutoModelForCausalLM.from_pretrained(model_path)
             
             # Add pad token if it doesn't exist
             if tokenizer.pad_token is None:
                 tokenizer.pad_token = tokenizer.eos_token
             
-            lab.log(f"Loaded model: {model_name}")
+            lab.log(f"Loaded model: {model_path}")
             
         except ImportError:
             lab.log("⚠️  Transformers not available, skipping real training")
@@ -207,6 +210,8 @@ def train_with_trl(quick_test=True):
                 remove_unused_columns=False,
                 push_to_hub=False,
                 dataset_text_field="text",  # Move dataset_text_field to SFTConfig
+                resume_from_checkpoint=checkpoint if checkpoint else None,
+                bf16=False,  # Disable bf16 for compatibility with older GPUs
                 # Enable automatic checkpoint saving
                 save_total_limit=3,  # Keep only the last 3 checkpoints to save disk space
                 save_strategy="steps",  # Save checkpoints every save_steps
@@ -440,15 +445,23 @@ def train_with_trl(quick_test=True):
 
 
 if __name__ == "__main__":
-    import sys
     
-    # Check if user wants full training or quick test
-    quick_test = False # Default to quick test
-    if len(sys.argv) > 1 and sys.argv[1] == "--quick-training":
-        quick_test = True
+    parser = argparse.ArgumentParser(description="Train a model with optional checkpoint resume.")
+    parser.add_argument("--quick-training", action="store_true", help="Run in quick test mode")
+    parser.add_argument("--resume_from_checkpoint", type=str, help="Path to checkpoint to resume from")
+    
+    args = parser.parse_args()
+    
+    quick_test = args.quick_training
+    checkpoint = args.resume_from_checkpoint
+    
+    if quick_test:
         print("🚀 Running quick test mode...")
     else:
-        print("🚀 Running full training mode (use --quick-training for quick test)...")
+        print("🚀 Running full training mode...")
     
-    result = train_with_trl(quick_test=quick_test)
+    if checkpoint:
+        print(f"📁 Resuming from checkpoint: {checkpoint}")
+
+    result = train_with_trl(quick_test=quick_test, checkpoint=checkpoint)
     print("Training result:", result)
