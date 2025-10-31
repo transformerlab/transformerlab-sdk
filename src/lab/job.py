@@ -271,19 +271,18 @@ class Job(BaseLabResource):
     
     def get_checkpoint_paths(self):
         """
-        Get list of checkpoint file paths for this job.
-        Returns list of checkpoint paths from job_data or scans directory.
+        Get list of checkpoint paths for this job.
+        Returns list of all items (files and dirs) in the checkpoints directory.
         """
         try:
-            # Scan the checkpoints directory
+            # Scan the checkpoints directory for all items (files and dirs)
             checkpoints_dir = self.get_checkpoints_dir()
             if os.path.exists(checkpoints_dir):
-                checkpoint_files = []
+                checkpoint_items = []
                 for item in os.listdir(checkpoints_dir):
                     item_path = os.path.join(checkpoints_dir, item)
-                    if os.path.isfile(item_path):
-                        checkpoint_files.append(item_path)
-                return sorted(checkpoint_files)
+                    checkpoint_items.append(item_path)
+                return sorted(checkpoint_items)
             
             return []
         except Exception:
