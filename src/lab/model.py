@@ -168,7 +168,6 @@ class Model(BaseLabResource):
         Returns:
             Path to the created provenance file
         """
-        import time
         
         # Start with base provenance data matching the structure from train.py
         final_provenance = {
