@@ -166,12 +166,7 @@ def train_with_trl(quick_test=True, checkpoint=None):
         try:
             from transformers import AutoTokenizer, AutoModelForCausalLM
             
-            model_name = training_config["model_name"]
-            if checkpoint:
-                model_path = checkpoint
-                lab.log(f"Resuming from checkpoint: {checkpoint}")
-            else:
-                model_path = model_name
+            model_path = training_config["model_name"]
             tokenizer = AutoTokenizer.from_pretrained(model_path)
             model = AutoModelForCausalLM.from_pretrained(model_path)
             
