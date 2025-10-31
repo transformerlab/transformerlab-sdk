@@ -81,7 +81,7 @@ class LabCallback(TrainerCallback):
         lab.update_progress(95)
 
 
-def train_with_trl(quick_test=True):
+def train_with_trl(quick_test=True, checkpoint=None):
     """Training function using HuggingFace SFTTrainer with automatic wandb detection
     
     Args:
