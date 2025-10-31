@@ -388,7 +388,7 @@ class Lab:
                 "dataset": job_data.get("dataset"),
                 "adaptor_name": job_data.get("adaptor_name", None),
                 "parameters": job_data.get("_config", {}),
-                "start_time": job_data.get("start_time", ""),
+                "start_time": job_data.get("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
                 "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                 "md5_checksums": md5_objects,
 
