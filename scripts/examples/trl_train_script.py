@@ -208,21 +208,23 @@ def train_with_trl(quick_test=True, checkpoint=None):
                     # Save checkpoints and artifacts after full training
                     lab.log("Saving training checkpoints and artifacts...")
                     
-                    # Create 5 fake checkpoints to simulate training progression
-                    for epoch in range(1, 6):
-                        checkpoint_file = os.path.join(training_config["output_dir"], f"checkpoint_epoch_{epoch}.txt")
-                        with open(checkpoint_file, "w") as f:
-                            f.write(f"Training checkpoint for epoch {epoch}\n")
-                            f.write(f"Model state: epoch_{epoch}\n")
-                            f.write(f"Loss: {0.5 - epoch * 0.08:.3f}\n")
-                            f.write(f"Accuracy: {0.6 + epoch * 0.08:.3f}\n")
-                            f.write(f"Timestamp: {datetime.now()}\n")
-                            f.write(f"Training step: {epoch * 100}\n")
-                            f.write(f"Learning rate: {training_config['_config']['lr']}\n")
-                        
-                        # Save checkpoint using lab facade
-                        saved_checkpoint_path = lab.save_checkpoint(checkpoint_file, f"epoch_{epoch}_checkpoint.txt")
-                        lab.log(f"Saved checkpoint: {saved_checkpoint_path}")
+                    # Save the last trainer checkpoint using lab.save_checkpoint
+                    try:
+                        from transformers.trainer_utils import get_last_checkpoint
+                        import tarfile
+
+                        last_ckpt = get_last_checkpoint(training_config["output_dir"])
+                        if last_ckpt:
+                            archive_path = os.path.join(training_config["output_dir"], os.path.basename(last_ckpt) + ".tar.gz")
+                            with tarfile.open(archive_path, "w:gz") as tar:
+                                tar.add(last_ckpt, arcname=os.path.basename(last_ckpt))
+
+                            saved_checkpoint_path = lab.save_checkpoint(archive_path, os.path.basename(archive_path))
+                            lab.log(f"Saved checkpoint: {saved_checkpoint_path}")
+                        else:
+                            lab.log("No checkpoint found")
+                    except Exception as e:
+                        lab.log(f"Error saving checkpoint: {e}")
                     
                     # Create 2 additional artifacts for full training
                     # Artifact 1: Training progress summary
