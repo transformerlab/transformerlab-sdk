@@ -81,13 +81,12 @@ class LabCallback(TrainerCallback):
         lab.update_progress(95)
 
 
-def train_with_trl(quick_test=True, checkpoint=None):
+def train_with_trl(quick_test=True):
     """Training function using HuggingFace SFTTrainer with automatic wandb detection
     
     Args:
         quick_test (bool): If True, only initializes trainer and tests wandb detection.
                           If False, actually runs training.
-        checkpoint (str): Path to checkpoint to resume from.
     """
     
     # Configure GPU usage - use only GPU 0
@@ -124,6 +123,11 @@ def train_with_trl(quick_test=True, checkpoint=None):
         # Initialize lab with default/simple API
         lab.init()
         lab.set_config(training_config)
+
+        # Check if we should resume from a checkpoint
+        checkpoint = lab.get_checkpoint_to_resume()
+        if checkpoint:
+            lab.log(f"📁 Resuming training from checkpoint: {checkpoint}")
 
         # Log start time
         start_time = datetime.now()
@@ -446,22 +450,17 @@ def train_with_trl(quick_test=True, checkpoint=None):
 
 if __name__ == "__main__":
     
-    parser = argparse.ArgumentParser(description="Train a model with optional checkpoint resume.")
+    parser = argparse.ArgumentParser(description="Train a model with automatic checkpoint resume support.")
     parser.add_argument("--quick-training", action="store_true", help="Run in quick test mode")
-    parser.add_argument("--resume_from_checkpoint", type=str, help="Path to checkpoint to resume from")
     
     args = parser.parse_args()
     
     quick_test = args.quick_training
-    checkpoint = args.resume_from_checkpoint
     
     if quick_test:
         print("🚀 Running quick test mode...")
     else:
         print("🚀 Running full training mode...")
-    
-    if checkpoint:
-        print(f"📁 Resuming from checkpoint: {checkpoint}")
 
-    result = train_with_trl(quick_test=quick_test, checkpoint=checkpoint)
+    result = train_with_trl(quick_test=quick_test)
     print("Training result:", result)

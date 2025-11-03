@@ -86,6 +86,77 @@ class Lab:
         # Check for wandb URL on every progress update
         self._check_and_capture_wandb_url()
 
+    # ------------- checkpoint resume support -------------
+    def get_checkpoint_to_resume(self) -> Optional[str]:
+        """
+        Get the checkpoint path to resume training from.
+        
+        This method checks for checkpoint resume information set via environment variables
+        (_TFL_PARENT_JOB_ID and _TFL_CHECKPOINT_NAME) which are automatically set by
+        the GPU orchestrator when resuming training.
+        
+        Returns:
+            Optional[str]: The full path to the checkpoint to resume from, or None if no
+                          checkpoint resume is requested.
+        
+        Example usage in training script:
+            checkpoint_path = lab.get_checkpoint_to_resume()
+            if checkpoint_path:
+                trainer = SFTTrainer(
+                    ...
+                    resume_from_checkpoint=checkpoint_path
+                )
+        """
+        parent_job_id = os.environ.get('_TFL_PARENT_JOB_ID')
+        checkpoint_name = os.environ.get('_TFL_CHECKPOINT_NAME')
+        
+        if not parent_job_id or not checkpoint_name:
+            return None
+        
+        # Build the checkpoint path from parent job's checkpoints directory
+        checkpoint_path = self.get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
+        
+        # Verify the checkpoint exists
+        if checkpoint_path and os.path.exists(checkpoint_path):
+            return checkpoint_path
+        
+        return None
+    
+    def get_parent_job_checkpoint_path(self, parent_job_id: str, checkpoint_name: str) -> Optional[str]:
+        """
+        Get the full path to a checkpoint from a parent job.
+        
+        This is a helper method that constructs the path to a specific checkpoint
+        from a parent job's checkpoints directory.
+        
+        Args:
+            parent_job_id (str): The ID of the parent job that created the checkpoint
+            checkpoint_name (str): The name of the checkpoint file or directory
+        
+        Returns:
+            Optional[str]: The full path to the checkpoint, or None if it doesn't exist
+        
+        Example:
+            checkpoint_path = lab.get_parent_job_checkpoint_path("job_123", "checkpoint-1000")
+        """
+        try:
+            checkpoints_dir = dirs.get_job_checkpoints_dir(parent_job_id)
+            checkpoint_path = os.path.join(checkpoints_dir, checkpoint_name)
+            
+            # Security check: ensure the checkpoint path is within the checkpoints directory
+            checkpoint_path_normalized = os.path.normpath(checkpoint_path)
+            checkpoints_dir_normalized = os.path.normpath(checkpoints_dir)
+            
+            if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + os.sep):
+                return None
+            
+            if os.path.exists(checkpoint_path_normalized):
+                return checkpoint_path_normalized
+            
+            return None
+        except Exception:
+            return None
+
     # ------------- completion -------------
     def finish(
         self,
