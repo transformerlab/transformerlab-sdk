@@ -9,6 +9,7 @@ from .job import Job
 from . import dirs
 from .model import Model as ModelService
 from . import storage
+from .dataset import Dataset
 
 class Lab:
     """
@@ -150,6 +151,98 @@ class Lab:
             pass
 
         return dest
+
+    def save_dataset(self, df, dataset_id: str, additional_metadata: Optional[Dict[str, Any]] = None, suffix: Optional[str] = None, is_image: bool = False) -> str:
+        """
+        Save a dataset under the workspace datasets directory and mark it as generated.
+
+        Args:
+            df: A pandas DataFrame or a Hugging Face datasets.Dataset to serialize to disk.
+            dataset_id: Identifier for the dataset directory under `datasets/`.
+            additional_metadata: Optional dict to merge into dataset json_data.
+            suffix: Optional suffix to append to the output filename stem.
+            is_image: If True, save JSON Lines (for image metadata-style rows).
+
+        Returns:
+            The path to the saved dataset file on disk.
+        """
+        self._ensure_initialized()
+        if not isinstance(dataset_id, str) or dataset_id.strip() == "":
+            raise ValueError("dataset_id must be a non-empty string")
+
+        # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
+        try:
+            if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
+                df = df.to_pandas()
+        except Exception:
+            pass
+
+        # Prepare dataset directory
+        dataset_id_safe = dataset_id.strip()
+        dataset_dir = dirs.dataset_dir_by_id(dataset_id_safe)
+        # If exists, then raise an error
+        if os.path.exists(dataset_dir):
+            raise FileExistsError(f"Dataset with ID {dataset_id_safe} already exists")
+        os.makedirs(dataset_dir, exist_ok=True)
+
+        # Determine output filename
+        if is_image:
+            lines = True
+            output_filename = "metadata.jsonl"
+        else:
+            lines = False
+            stem = dataset_id_safe
+            if isinstance(suffix, str) and suffix.strip() != "":
+                stem = f"{stem}_{suffix.strip()}"
+            output_filename = f"{stem}.json"
+
+        output_path = os.path.join(dataset_dir, output_filename)
+
+        # Persist dataframe
+        try:
+            if not hasattr(df, "to_json"):
+                raise TypeError("df must be a pandas DataFrame or a Hugging Face datasets.Dataset")
+            df.to_json(output_path, orient="records", lines=lines)
+        except Exception as e:
+            raise RuntimeError(f"Failed to save dataset to {output_path}: {str(e)}")
+
+        # Create or update filesystem metadata so it appears under generated datasets
+        try:
+            try:
+                ds = Dataset.get(dataset_id_safe)
+            except FileNotFoundError:
+                ds = Dataset.create(dataset_id_safe)
+
+            # Base json_data with generated flag for UI filtering
+            json_data: Dict[str, Any] = {
+                "generated": True,
+                "sample_count": len(df) if hasattr(df, "__len__") else -1,
+                "files": [output_filename],
+            }
+            if additional_metadata and isinstance(additional_metadata, dict):
+                json_data.update(additional_metadata)
+
+            ds.set_metadata(
+                location="local",
+                description=json_data.get("description", ""),
+                size=-1,
+                json_data=json_data,
+            )
+        except Exception as e:
+            # Do not fail the save if metadata write fails; log to job data
+            try:
+                self._job.update_job_data_field("dataset_metadata_error", str(e))  # type: ignore[union-attr]
+            except Exception:
+                pass
+
+        # Track dataset on the job for provenance
+        try:
+            self._job.update_job_data_field("dataset_id", dataset_id_safe)  # type: ignore[union-attr]
+        except Exception:
+            pass
+
+        self.log(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'")
+        return output_path
 
     def save_checkpoint(self, source_path: str, name: Optional[str] = None) -> str:
         """

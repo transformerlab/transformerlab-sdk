@@ -17,7 +17,7 @@ class BaseLabResource(ABC):
         self.id = id
 
     @abstractmethod
-    def get_dir(self):
+    def get_dir(self) -> str:
         """Get file system directory where this resource is stored."""
         pass
 
