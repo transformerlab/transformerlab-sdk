@@ -168,17 +168,17 @@ def train_with_trl(quick_test=True):
         lab.log("Loading model and tokenizer...")
         try:
             from transformers import AutoTokenizer, AutoModelForCausalLM
-            
-            model_path = training_config["model_name"]
-            tokenizer = AutoTokenizer.from_pretrained(model_path)
-            model = AutoModelForCausalLM.from_pretrained(model_path)
-            
+
+            model_name = training_config["model_name"]
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model = AutoModelForCausalLM.from_pretrained(model_name)
+
             # Add pad token if it doesn't exist
             if tokenizer.pad_token is None:
                 tokenizer.pad_token = tokenizer.eos_token
             
-            lab.log(f"Loaded model: {model_path}")
-            
+            lab.log(f"Loaded model: {model_name}")
+
         except ImportError:
             lab.log("⚠️  Transformers not available, skipping real training")
             lab.finish("Training skipped - transformers not available")
