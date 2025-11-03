@@ -378,7 +378,7 @@ class Experiment(BaseLabResource):
 
     def _add_job(self, job_id, type):
         try:
-            with open(self._jobs_json_file(), "r") as f:
+            with storage.open(self._jobs_json_file(), "r") as f:
                 jobs_data = json.load(f)
         except Exception:
             jobs_data = {"index": {}, "cached_jobs": {}}

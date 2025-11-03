@@ -124,10 +124,10 @@ class Lab:
         job_id = self._job.id  # type: ignore[union-attr]
         artifacts_dir = dirs.get_job_artifacts_dir(job_id)
         base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
-        dest = os.path.join(artifacts_dir, base_name)
+        dest = storage.join(artifacts_dir, base_name)
 
         # Create parent directories
-        storage.makedirs(os.path.dirname(dest), exist_ok=True)
+        storage.makedirs(dest.rsplit('/', 1)[0] if '/' in dest else artifacts_dir, exist_ok=True)
 
         # Copy file or directory
         if os.path.isdir(src):
@@ -261,10 +261,10 @@ class Lab:
         job_id = self._job.id  # type: ignore[union-attr]
         ckpts_dir = dirs.get_job_checkpoints_dir(job_id)
         base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
-        dest = os.path.join(ckpts_dir, base_name)
+        dest = storage.join(ckpts_dir, base_name)
 
         # Create parent directories
-        storage.makedirs(os.path.dirname(dest), exist_ok=True)
+        storage.makedirs(dest.rsplit('/', 1)[0] if '/' in dest else ckpts_dir, exist_ok=True)
 
         # Copy file or directory
         if os.path.isdir(src):
@@ -325,10 +325,10 @@ class Lab:
         
         # Save to main workspace models directory for Model Zoo visibility
         models_dir = dirs.get_models_dir()
-        dest = os.path.join(models_dir, base_name)
+        dest = storage.join(models_dir, base_name)
         
         # Create parent directories
-        storage.makedirs(os.path.dirname(dest), exist_ok=True)
+        storage.makedirs(dest.rsplit('/', 1)[0] if '/' in dest else models_dir, exist_ok=True)
 
         # Copy file or directory
         if os.path.isdir(src):
