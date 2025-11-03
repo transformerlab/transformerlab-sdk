@@ -101,7 +101,6 @@ def train_with_trl(quick_test=True):
         "output_dir": "./output",
         "log_to_wandb": True,
         "quick_test": quick_test,
-        "checkpoint": checkpoint,
         "_config": {
             "dataset_name": "Trelis/touch-rugby-rules",
             "lr": 2e-5,
