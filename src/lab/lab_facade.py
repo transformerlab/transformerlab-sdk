@@ -98,14 +98,6 @@ class Lab:
         Returns:
             Optional[str]: The full path to the checkpoint to resume from, or None if no
                           checkpoint resume is requested.
-        
-        Example usage in training script:
-            checkpoint_path = lab.get_checkpoint_to_resume()
-            if checkpoint_path:
-                trainer = SFTTrainer(
-                    ...
-                    resume_from_checkpoint=checkpoint_path
-                )
         """
         parent_job_id = os.environ.get('_TFL_PARENT_JOB_ID')
         checkpoint_name = os.environ.get('_TFL_CHECKPOINT_NAME')
@@ -135,9 +127,6 @@ class Lab:
         
         Returns:
             Optional[str]: The full path to the checkpoint, or None if it doesn't exist
-        
-        Example:
-            checkpoint_path = lab.get_parent_job_checkpoint_path("job_123", "checkpoint-1000")
         """
         try:
             checkpoints_dir = dirs.get_job_checkpoints_dir(parent_job_id)
