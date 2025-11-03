@@ -149,7 +149,8 @@ class Lab:
                 return checkpoint_path_normalized
             
             return None
-        except Exception:
+        except Exception as e:
+            print(f"Error getting parent job checkpoint path: {str(e)}")
             return None
 
     # ------------- completion -------------
@@ -213,8 +214,8 @@ class Lab:
                     artifact_list = existing
             artifact_list.append(dest)
             self._job.update_job_data_field("artifacts", artifact_list)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to track artifact in job_data: {str(e)}")
 
         return dest
 
@@ -240,8 +241,8 @@ class Lab:
         try:
             if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
                 df = df.to_pandas()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to convert dataset to pandas DataFrame: {str(e)}")
 
         # Prepare dataset directory
         dataset_id_safe = dataset_id.strip()
@@ -296,16 +297,17 @@ class Lab:
             )
         except Exception as e:
             # Do not fail the save if metadata write fails; log to job data
+            print(f"Warning: Failed to create dataset metadata: {str(e)}")
             try:
                 self._job.update_job_data_field("dataset_metadata_error", str(e))  # type: ignore[union-attr]
-            except Exception:
-                pass
+            except Exception as e2:
+                print(f"Warning: Failed to log dataset metadata error: {str(e2)}")
 
         # Track dataset on the job for provenance
         try:
             self._job.update_job_data_field("dataset_id", dataset_id_safe)  # type: ignore[union-attr]
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to track dataset in job_data: {str(e)}")
 
         self.log(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'")
         return output_path
@@ -349,8 +351,8 @@ class Lab:
             ckpt_list.append(dest)
             self._job.update_job_data_field("checkpoints", ckpt_list)
             self._job.update_job_data_field("latest_checkpoint", dest)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to track checkpoint in job_data: {str(e)}")
 
         return dest
 
@@ -482,8 +484,8 @@ class Lab:
                     model_list = existing
             model_list.append(dest)
             self._job.update_job_data_field("models", model_list)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to track model in job_data: {str(e)}")
 
         return dest
 
