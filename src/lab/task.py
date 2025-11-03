@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
@@ -28,16 +27,6 @@ class Task(BaseLabResource):
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
         }
-    @classmethod
-    def create(self, id):
-        return super().create(id)
-
-    def delete(self):
-        return super().delete()
-
-    @classmethod
-    def get(cls, id):
-        return super().get(id)
 
     def set_metadata(self, *, name: str | None = None, type: str | None = None, 
                      inputs: dict | None = None, config: dict | None = None,

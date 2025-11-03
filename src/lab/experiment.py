@@ -36,8 +36,8 @@ class Experiment(BaseLabResource):
     def _default_json(self):
         return {"name": self.id, "id": self.id, "config": {}}
 
-    def _initialize(self, filesystem_override: str | None = None):
-        super()._initialize(filesystem_override=filesystem_override)
+    def _initialize(self):
+        super()._initialize()
 
         # Create a empty jobs index and write
         jobs_json_path = self._jobs_json_file()

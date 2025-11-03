@@ -22,16 +22,16 @@ class BaseLabResource(ABC):
         pass
 
     @classmethod
-    def create(cls, id, filesystem_override: str | None = None):
+    def create(cls, id):
         """
         Default method to create a new entity and initialize it with defualt metadata.
         """
         newobj = cls(id)
-        newobj._initialize(filesystem_override=filesystem_override)
+        newobj._initialize()
         return newobj
 
     @classmethod
-    def get(cls, id, filesystem_override: str | None = None):
+    def get(cls, id):
         """
         Default method to get entity if it exists in the file system.
         If the entity's directory doesn't exist then throw an error.
@@ -39,13 +39,13 @@ class BaseLabResource(ABC):
         """
         newobj = cls(id)
         resource_dir = newobj.get_dir()
-        if not storage.isdir(resource_dir, filesystem_override=filesystem_override):
+        if not storage.isdir(resource_dir):
             raise FileNotFoundError(
                 f"Directory for {cls.__name__} with id '{id}' not found"
             )
-        json_file = newobj._get_json_file(filesystem_override=filesystem_override)
-        if not storage.exists(json_file, filesystem_override=filesystem_override):
-            with storage.open(json_file, "w", encoding="utf-8", filesystem_override=filesystem_override) as f:
+        json_file = newobj._get_json_file()
+        if not storage.exists(json_file):
+            with storage.open(json_file, "w", encoding="utf-8") as f:
                 json.dump(newobj._default_json(), f)
         return newobj
 
@@ -54,7 +54,7 @@ class BaseLabResource(ABC):
     # There are used by all subclasses to initialize, get and set JSON data
     ###
 
-    def _initialize(self, filesystem_override: str | None = None):
+    def _initialize(self):
         """
         Default function to initialize the file system and json object.
         To alter the default metadata update the _default_json method.
@@ -62,28 +62,28 @@ class BaseLabResource(ABC):
 
         # Create directory for this resource
         dir = self.get_dir()
-        storage.makedirs(dir, exist_ok=True, filesystem_override=filesystem_override)
-        print(f"Created directory for {type(self).__name__} with id '{self.id}' and filesystem override '{filesystem_override}'")
+        storage.makedirs(dir, exist_ok=True)
+        print(f"Created directory for {type(self).__name__} with id '{self.id}'")
 
         # Create a default json file. Throw an error if one already exists.
         json_file = self._get_json_file()
-        if storage.exists(json_file, filesystem_override=filesystem_override):
+        if storage.exists(json_file):
             raise FileExistsError(
                 f"{type(self).__name__} with id '{self.id}' already exists"
             )
-        with storage.open(json_file, "w", encoding="utf-8", filesystem_override=filesystem_override) as f:
+        with storage.open(json_file, "w", encoding="utf-8") as f:
             json.dump(self._default_json(), f)
 
     def _default_json(self):
         """Override in subclasses to support the initialize method."""
         return {"id": self.id}
 
-    def _get_json_file(self, filesystem_override: str | None = None):
+    def _get_json_file(self):
         """Get json file containing metadata for this resource."""
         return os.path.join(self.get_dir(), "index.json")
 
 
-    def get_json_data(self, filesystem_override: str | None = None):
+    def get_json_data(self):
         """
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
@@ -96,7 +96,7 @@ class BaseLabResource(ABC):
         # Try opening this file location and parsing the json inside
         # On any error return an empty dict
         try:
-            with storage.open(json_file, "r", encoding="utf-8", filesystem_override=filesystem_override) as f:
+            with storage.open(json_file, "r", encoding="utf-8") as f:
                 content = f.read()
                 # Clean the content - remove trailing whitespace and extra characters
                 content = content.strip()
@@ -107,7 +107,7 @@ class BaseLabResource(ABC):
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
-    def _set_json_data(self, json_data, filesystem_override: str | None = None):
+    def _set_json_data(self, json_data):
         """
         Sets the entire JSON data that is stored for this resource in the filesystem.
         This will overwrite whatever is stored now.
@@ -124,7 +124,7 @@ class BaseLabResource(ABC):
 
         # Write directly to index.json
         json_file = self._get_json_file()
-        with storage.open(json_file, "w", encoding="utf-8", filesystem_override=filesystem_override) as f:
+        with storage.open(json_file, "w", encoding="utf-8") as f:
             json.dump(json_data, f, ensure_ascii=False)
 
     def _get_json_data_field(self, key, default=""):
@@ -138,7 +138,7 @@ class BaseLabResource(ABC):
         json_data[key] = value
         self._set_json_data(json_data)
 
-    def _migrate_to_single_index(self, filesystem_override: str | None = None):
+    def _migrate_to_single_index(self):
         """
         Migrate from timestamped index files to a single index.json file.
         This method is idempotent and safe to call multiple times.
@@ -149,11 +149,11 @@ class BaseLabResource(ABC):
 
         # Check if we already have a single index.json file
         index_file = self._get_json_file()
-        if storage.exists(index_file, filesystem_override=filesystem_override):
+        if storage.exists(index_file):
             # Check if there are any timestamped files to migrate
             has_timestamped_files = False
             try:
-                entries = storage.ls(resource_dir, detail=False, filesystem_override=filesystem_override)
+                entries = storage.ls(resource_dir, detail=False)
             except Exception:
                 entries = []
             for entry in entries:
@@ -171,7 +171,7 @@ class BaseLabResource(ABC):
         
         # First, try to use latest.txt if it exists
         latest_txt_path = os.path.join(resource_dir, "latest.txt")
-        if storage.exists(latest_txt_path, filesystem_override=filesystem_override):
+        if storage.exists(latest_txt_path):
             try:
                 with storage.open(latest_txt_path, "r", encoding="utf-8") as lf:
                     latest_filename = lf.read().strip()
@@ -185,7 +185,7 @@ class BaseLabResource(ABC):
         # If no latest.txt or file doesn't exist, find the most recent by timestamp
         if not latest_file:
             try:
-                entries = storage.ls(resource_dir, detail=False, filesystem_override=filesystem_override)
+                entries = storage.ls(resource_dir, detail=False)
             except Exception:
                 entries = []
             for entry in entries:
@@ -203,7 +203,7 @@ class BaseLabResource(ABC):
                         continue
 
         # If we found a latest file, migrate it to index.json
-        if latest_file and storage.exists(latest_file, filesystem_override=filesystem_override):
+        if latest_file and storage.exists(latest_file):
             try:
                 with storage.open(latest_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -214,7 +214,7 @@ class BaseLabResource(ABC):
                 
                 # Clean up timestamped files and latest.txt
                 try:
-                    entries = storage.ls(resource_dir, detail=False, filesystem_override=filesystem_override)
+                    entries = storage.ls(resource_dir, detail=False)
                 except Exception:
                     entries = []
                 for entry in entries:
@@ -222,18 +222,18 @@ class BaseLabResource(ABC):
                     if filename.startswith("index-") and filename.endswith(".json"):
                         storage.rm(os.path.join(resource_dir, filename))
                 
-                if storage.exists(latest_txt_path, filesystem_override=filesystem_override):
+                if storage.exists(latest_txt_path):
                     storage.rm(latest_txt_path)
                     
             except Exception:
                 # If migration fails, leave everything as is
                 pass
 
-    def delete(self, filesystem_override: str | None = None):
+    def delete(self):
         """
         Delete this resource by deleting the containing directory.
         TODO: We should change to soft delete
         """
         resource_dir = self.get_dir()
-        if storage.exists(resource_dir, filesystem_override=filesystem_override):
-            storage.rm_tree(resource_dir, filesystem_override=filesystem_override)
+        if storage.exists(resource_dir):
+            storage.rm_tree(resource_dir)

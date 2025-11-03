@@ -73,137 +73,77 @@ def root_join(*parts: str) -> str:
     return join(root_uri(), *parts)
 
 
-def exists(path: str, filesystem_override: str | None = None) -> bool:
-    if filesystem_override:
-        fs, _token, paths = fsspec.get_fs_token_paths(
-            filesystem_override, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-        )
-        return fs.exists(path)
-    else:
-        return filesystem().exists(path)
+def exists(path: str) -> bool:
+    return filesystem().exists(path)
 
 
-def isdir(path: str, filesystem_override: str | None = None) -> bool:
+def isdir(path: str) -> bool:
     try:
-        if filesystem_override:
-            fs, _token, paths = fsspec.get_fs_token_paths(
-                filesystem_override, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-            )
-            return fs.isdir(path)
-        else:
-            return filesystem().isdir(path)
+        return filesystem().isdir(path)
     except Exception:
         return False
 
 
-def isfile(path: str, filesystem_override: str | None = None) -> bool:
+def isfile(path: str) -> bool:
     try:
-        if filesystem_override:
-            fs, _token, paths = fsspec.get_fs_token_paths(
-                filesystem_override, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-            )
-            return fs.isfile(path)
-        else:
-            return filesystem().isfile(path)
+        return filesystem().isfile(path)
     except Exception:
         return False
 
 
-def makedirs(path: str, exist_ok: bool = True, filesystem_override: str | None = None) -> None:
+def makedirs(path: str, exist_ok: bool = True) -> None:
     try:
-        if filesystem_override:
-            fs, _token, paths = fsspec.get_fs_token_paths(
-                filesystem_override, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-            )
-            fs.makedirs(path, exist_ok=exist_ok)
-        else:
-            filesystem().makedirs(path, exist_ok=exist_ok)
+        filesystem().makedirs(path, exist_ok=exist_ok)
     except TypeError:
         # Some filesystems don't support exist_ok parameter
         if not exist_ok or not exists(path):
             filesystem().makedirs(path)
 
 
-def ls(path: str, detail: bool = False, filesystem_override: str | None = None):
-    if filesystem_override:
-        # Let fsspec parse the URI
-        fs, _token, paths = fsspec.get_fs_token_paths(
-            filesystem_override, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-        )
-        paths = fs.ls(path, detail=detail)
-        # Dont include the current path in the list
-        # Ensure paths are full URIs for remote filesystems
-        if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
-            # For remote filesystems, ensure returned paths are full URIs
-            full_paths = []
-            for p in paths:
-                if not p.startswith(("s3://", "gs://", "abfs://", "gcs://")):
-                    # Convert relative path to full URI
-                    protocol = path.split("://")[0] + "://"
-                    full_path = protocol + p
-                    full_paths.append(full_path)
-                else:
-                    full_paths.append(p)
-            full_paths = [p for p in full_paths if p != path]
-            return full_paths
-        return paths
-    else:
-        return filesystem().ls(path, detail=detail)
-
-
-def find(path: str, filesystem_override: str | None = None) -> list[str]:
-    if filesystem_override:
-        fs, _token, paths = fsspec.get_fs_token_paths(
-            filesystem_override, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-        )
-        return fs.find(path)
-    else:
-        return filesystem().find(path)
-
-
-def rm(path: str, filesystem_override: str | None = None) -> None:
-    if exists(path):
-        if filesystem_override:
-            fs, _token, paths = fsspec.get_fs_token_paths(
-                filesystem_override, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-            )
-            fs.rm(path)
-        else:
-            filesystem().rm(path)
-
-
-def rm_tree(path: str, filesystem_override: str | None = None) -> None:
-    if exists(path, filesystem_override=filesystem_override):
-        try:
-            if filesystem_override:
-                fs, _token, paths = fsspec.get_fs_token_paths(
-                    filesystem_override, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-                )
-                fs.rm(path, recursive=True)
+def ls(path: str, detail: bool = False):
+    # Let fsspec parse the URI
+    paths = filesystem().ls(path, detail=detail)
+    # Dont include the current path in the list
+    # Ensure paths are full URIs for remote filesystems
+    if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+        # For remote filesystems, ensure returned paths are full URIs
+        full_paths = []
+        for p in paths:
+            if not p.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+                # Convert relative path to full URI
+                protocol = path.split("://")[0] + "://"
+                full_path = protocol + p
+                full_paths.append(full_path)
             else:
-                filesystem().rm(path, recursive=True)
+                full_paths.append(p)
+        full_paths = [p for p in full_paths if p != path]
+        return full_paths
+    return paths
+
+
+def find(path: str) -> list[str]:
+    return filesystem().find(path)
+
+
+def rm(path: str) -> None:
+    if exists(path):
+        filesystem().rm(path)
+
+
+def rm_tree(path: str) -> None:
+    if exists(path):
+        try:
+            filesystem().rm(path, recursive=True)
         except TypeError:
             # Some filesystems don't support recursive parameter
             # Use find() to get all files and remove them individually
-            files = find(path, filesystem_override=filesystem_override)
+            files = find(path)
             for file_path in reversed(files):  # Remove files before directories
-                if filesystem_override:
-                    fs, _token, paths = fsspec.get_fs_token_paths(
-                        filesystem_override, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-                    )
-                    fs.rm(file_path)
-                else:
-                    filesystem().rm(file_path)
+                filesystem().rm(file_path)
 
 
-def open(path: str, mode: str = "r", filesystem_override: str | None = None, **kwargs):
-    if filesystem_override:
-        fs, _token, paths = fsspec.get_fs_token_paths(
-            filesystem_override, storage_options={"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-        )
-        return fs.open(path, mode=mode, **kwargs)
-    else:
-        return filesystem().open(path, mode=mode, **kwargs)
+def open(path: str, mode: str = "r", **kwargs):
+    return filesystem().open(path, mode=mode, **kwargs)
 
 
 def copy_file(src: str, dest: str) -> None:
