@@ -91,16 +91,22 @@ class Lab:
         """
         Get the checkpoint path to resume training from.
         
-        This method checks for checkpoint resume information set via environment variables
-        (_TFL_PARENT_JOB_ID and _TFL_CHECKPOINT_NAME) which are automatically set by
-        the GPU orchestrator when resuming training.
+        This method checks for checkpoint resume information stored in the job data
+        when resuming training from a checkpoint.
         
         Returns:
             Optional[str]: The full path to the checkpoint to resume from, or None if no
                           checkpoint resume is requested.
         """
-        parent_job_id = os.environ.get('_TFL_PARENT_JOB_ID')
-        checkpoint_name = os.environ.get('_TFL_CHECKPOINT_NAME')
+        if not self._job:
+            return None
+            
+        job_data = self._job.get_job_data()
+        if not job_data:
+            return None
+        
+        parent_job_id = job_data.get('parent_job_id')
+        checkpoint_name = job_data.get('resumed_from_checkpoint')
         
         if not parent_job_id or not checkpoint_name:
             return None
