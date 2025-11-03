@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import os
 import json
 from datetime import datetime
 from . import storage
@@ -80,7 +79,7 @@ class BaseLabResource(ABC):
 
     def _get_json_file(self):
         """Get json file containing metadata for this resource."""
-        return os.path.join(self.get_dir(), "index.json")
+        return storage.join(self.get_dir(), "index.json")
 
 
     def get_json_data(self):
@@ -170,13 +169,13 @@ class BaseLabResource(ABC):
         latest_timestamp = None
         
         # First, try to use latest.txt if it exists
-        latest_txt_path = os.path.join(resource_dir, "latest.txt")
+        latest_txt_path = storage.join(resource_dir, "latest.txt")
         if storage.exists(latest_txt_path):
             try:
                 with storage.open(latest_txt_path, "r", encoding="utf-8") as lf:
                     latest_filename = lf.read().strip()
                     if latest_filename:
-                        candidate_path = os.path.join(resource_dir, latest_filename)
+                        candidate_path = storage.join(resource_dir, latest_filename)
                         if storage.isfile(candidate_path):
                             latest_file = candidate_path
             except Exception:
@@ -197,7 +196,7 @@ class BaseLabResource(ABC):
                         timestamp = datetime.strptime(timestamp_str, "%Y%m%dT%H%M%S%fZ")
                         if latest_timestamp is None or timestamp > latest_timestamp:
                             latest_timestamp = timestamp
-                            latest_file = os.path.join(resource_dir, filename)
+                            latest_file = storage.join(resource_dir, filename)
                     except ValueError:
                         # Skip files with invalid timestamp format
                         continue
@@ -220,7 +219,7 @@ class BaseLabResource(ABC):
                 for entry in entries:
                     filename = entry.rstrip("/").split("/")[-1]
                     if filename.startswith("index-") and filename.endswith(".json"):
-                        storage.rm(os.path.join(resource_dir, filename))
+                        storage.rm(storage.join(resource_dir, filename))
                 
                 if storage.exists(latest_txt_path):
                     storage.rm(latest_txt_path)

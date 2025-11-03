@@ -40,7 +40,7 @@ def get_workspace_dir() -> str:
         return "/workspace"
 
     # Explicit override wins
-    if "TFL_WORKSPACE_DIR" in os.environ and not (_current_tfl_storage_uri.get() and not os.getenv("TFL_STORAGE_URI")):
+    if "TFL_WORKSPACE_DIR" in os.environ and not (_current_tfl_storage_uri.get() is not None and os.getenv("TFL_STORAGE_URI") is not None):
         value = os.environ["TFL_WORKSPACE_DIR"]
         if not os.path.exists(value):
             print(f"Error: Workspace directory {value} does not exist")
@@ -50,6 +50,9 @@ def get_workspace_dir() -> str:
     org_id = _current_org_id.get()
 
     if org_id:
+        # # If the storage URI is set, use it for the org workspace
+        # if _current_tfl_storage_uri.get() is not None:
+        #     return _current_tfl_storage_uri.get()
         path = storage.join(HOME_DIR, "orgs", org_id, "workspace")
         storage.makedirs(path, exist_ok=True)
         return path

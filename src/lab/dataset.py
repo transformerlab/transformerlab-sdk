@@ -1,4 +1,3 @@
-import os
 from werkzeug.utils import secure_filename
 
 from .dirs import get_datasets_dir
@@ -10,7 +9,7 @@ class Dataset(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         dataset_id_safe = secure_filename(str(self.id))
-        return os.path.join(get_datasets_dir(), dataset_id_safe)
+        return storage.join(get_datasets_dir(), dataset_id_safe)
 
     def _default_json(self):
         # Default metadata modeled after API dataset table fields

@@ -31,7 +31,7 @@ class Experiment(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         experiment_id_safe = secure_filename(str(self.id))
-        return os.path.join(get_experiments_dir(), experiment_id_safe)
+        return storage.join(get_experiments_dir(), experiment_id_safe)
 
     def _default_json(self):
         return {"name": self.id, "id": self.id, "config": {}}
@@ -97,7 +97,7 @@ class Experiment(BaseLabResource):
             for exp_path in entries:
                 try:
                     if storage.isdir(exp_path):
-                        index_file = os.path.join(exp_path, "index.json")
+                        index_file = storage.join(exp_path, "index.json")
                         if storage.exists(index_file):
                             with storage.open(index_file, "r") as f:
                                 data = json.load(f)
@@ -206,9 +206,9 @@ class Experiment(BaseLabResource):
         Path to jobs.json index file for this experiment.
         """
         if workspace_dir and experiment_id:
-            return os.path.join(workspace_dir, "experiments", experiment_id, "jobs.json")
+            return storage.join(workspace_dir, "experiments", experiment_id, "jobs.json")
 
-        return os.path.join(self.get_dir(), "jobs.json")
+        return storage.join(self.get_dir(), "jobs.json")
 
     def rebuild_jobs_index(self, workspace_dir=None):
         results = {}
@@ -216,7 +216,7 @@ class Experiment(BaseLabResource):
         try:
             # Use provided jobs_dir or get current one
             if workspace_dir:
-                jobs_directory = os.path.join(workspace_dir, "jobs")
+                jobs_directory = storage.join(workspace_dir, "jobs")
             else:
                 jobs_directory = get_jobs_dir()
             
@@ -229,11 +229,11 @@ class Experiment(BaseLabResource):
             job_entries = [p.rstrip("/").split("/")[-1] for p in job_entries_full]
             sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'), reverse=True)
             for entry in sorted_entries:
-                entry_path = os.path.join(jobs_directory, entry)
+                entry_path = storage.join(jobs_directory, entry)
                 if not storage.isdir(entry_path):
                     continue
                 # Prefer the latest snapshot if available; fall back to index.json
-                index_file = os.path.join(entry_path, "index.json")
+                index_file = storage.join(entry_path, "index.json")
                 try:
                     with storage.open(index_file, "r", encoding="utf-8") as lf:
                         data = json.load(lf)

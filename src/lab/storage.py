@@ -125,6 +125,22 @@ def find(path: str) -> list[str]:
     return filesystem().find(path)
 
 
+def walk(path: str, maxdepth=None, topdown=True, on_error='omit'):
+    """
+    Walk directory tree, yielding (root, dirs, files) tuples.
+    
+    Args:
+        path: Root directory to start the walk
+        maxdepth: Maximum recursion depth (None for no limit)
+        topdown: If True, traverse top-down; if False, bottom-up
+        on_error: Error behavior ('omit', 'raise', or callable)
+    
+    Yields:
+        (root, dirs, files) tuples similar to os.walk()
+    """
+    return filesystem().walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)
+
+
 def rm(path: str) -> None:
     if exists(path):
         filesystem().rm(path)

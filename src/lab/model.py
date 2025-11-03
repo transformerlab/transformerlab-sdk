@@ -11,7 +11,7 @@ class Model(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         model_id_safe = secure_filename(str(self.id))
-        return os.path.join(get_models_dir(), model_id_safe)
+        return storage.join(get_models_dir(), model_id_safe)
 
     def _default_json(self):
         # Default metadata modeled after API model table fields
@@ -83,7 +83,7 @@ class Model(BaseLabResource):
         architecture = "Unknown"
         
         if storage.isdir(model_path):
-            config_path = os.path.join(model_path, "config.json")
+            config_path = storage.join(model_path, "config.json")
             if storage.exists(config_path):
                 try:
                     with storage.open(config_path, 'r') as f:
@@ -207,7 +207,7 @@ class Model(BaseLabResource):
             final_provenance.update(provenance_data)
 
         # Write provenance to file
-        provenance_path = os.path.join(model_path, "_tlab_provenance.json")
+        provenance_path = storage.join(model_path, "_tlab_provenance.json")
         with storage.open(provenance_path, "w") as f:
             json.dump(final_provenance, f, indent=2)
 
@@ -250,7 +250,7 @@ class Model(BaseLabResource):
         model_description["json_data"].update(json_data)
 
         # Output the json to the file
-        with storage.open(os.path.join(self.get_dir(), "index.json"), "w") as outfile:
+        with storage.open(storage.join(self.get_dir(), "index.json"), "w") as outfile:
             json.dump(model_description, outfile)
 
         return model_description
