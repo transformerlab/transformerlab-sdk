@@ -1,4 +1,4 @@
-import os
+import posixpath
 from werkzeug.utils import secure_filename
 
 from . import dirs
@@ -19,7 +19,7 @@ class Job(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         job_id_safe = secure_filename(str(self.id))
-        job_dir = os.path.join(dirs.get_jobs_dir(), job_id_safe)
+        job_dir = storage.join(dirs.get_jobs_dir(), job_id_safe)
         return job_dir
 
     def get_log_path(self):
@@ -27,7 +27,7 @@ class Job(BaseLabResource):
         Returns the path where this job should write logs.
         """
         # Default location for log file
-        log_path = os.path.join(self.get_dir(), f"output_{self.id}.txt")
+        log_path = storage.join(self.get_dir(), f"output_{self.id}.txt")
 
         if not storage.exists(log_path):
             # Then check if there is a path explicitly set in the job data
@@ -165,7 +165,7 @@ class Job(BaseLabResource):
         # Read existing content, append new message, and write back to log file
         try:
             log_path = self.get_log_path()
-            storage.makedirs(os.path.dirname(log_path), exist_ok=True)
+            storage.makedirs(posixpath.dirname(log_path), exist_ok=True)
             
             # Read existing content if file exists
             existing_content = ""
