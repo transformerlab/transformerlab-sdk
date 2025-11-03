@@ -181,9 +181,9 @@ class Lab:
         dataset_id_safe = dataset_id.strip()
         dataset_dir = dirs.dataset_dir_by_id(dataset_id_safe)
         # If exists, then raise an error
-        if os.path.exists(dataset_dir):
+        if storage.exists(dataset_dir):
             raise FileExistsError(f"Dataset with ID {dataset_id_safe} already exists")
-        os.makedirs(dataset_dir, exist_ok=True)
+        storage.makedirs(dataset_dir, exist_ok=True)
 
         # Determine output filename
         if is_image:
@@ -196,13 +196,15 @@ class Lab:
                 stem = f"{stem}_{suffix.strip()}"
             output_filename = f"{stem}.json"
 
-        output_path = os.path.join(dataset_dir, output_filename)
+        output_path = storage.join(dataset_dir, output_filename)
 
         # Persist dataframe
         try:
             if not hasattr(df, "to_json"):
                 raise TypeError("df must be a pandas DataFrame or a Hugging Face datasets.Dataset")
-            df.to_json(output_path, orient="records", lines=lines)
+            # Use fsspec storage for writing
+            with storage.open(output_path, "w") as f:
+                df.to_json(f, orient="records", lines=lines)
         except Exception as e:
             raise RuntimeError(f"Failed to save dataset to {output_path}: {str(e)}")
 
