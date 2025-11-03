@@ -30,21 +30,21 @@ class Task(BaseLabResource):
         }
     @classmethod
     def create(self, id):
-        return super().create(id, filesystem_override=os.getenv("TFL_API_STORAGE_URI"))
+        return super().create(id)
 
     def delete(self):
-        return super().delete(filesystem_override=os.getenv("TFL_API_STORAGE_URI"))
+        return super().delete()
 
     @classmethod
     def get(cls, id):
-        return super().get(id, filesystem_override=os.getenv("TFL_API_STORAGE_URI"))
+        return super().get(id)
 
     def set_metadata(self, *, name: str | None = None, type: str | None = None, 
                      inputs: dict | None = None, config: dict | None = None,
                      plugin: str | None = None, outputs: dict | None = None,
                      experiment_id: str | None = None, remote_task: bool | None = None):
         """Set task metadata"""
-        data = self.get_json_data(filesystem_override=os.getenv("TFL_API_STORAGE_URI"))
+        data = self.get_json_data()
         if name is not None:
             data["name"] = name
         if type is not None:
@@ -65,11 +65,11 @@ class Task(BaseLabResource):
         
         # Always update the updated_at timestamp
         data["updated_at"] = datetime.utcnow().isoformat()
-        self._set_json_data(data, filesystem_override=os.getenv("TFL_API_STORAGE_URI"))
+        self._set_json_data(data)
 
     def get_metadata(self):
         """Get task metadata"""
-        data = self.get_json_data(filesystem_override=os.getenv("TFL_API_STORAGE_URI"))
+        data = self.get_json_data()
         
         # Fix experiment_id if it's a digit - convert to experiment name
         if data.get("experiment_id") and str(data["experiment_id"]).isdigit():
@@ -77,7 +77,7 @@ class Task(BaseLabResource):
             if experiment_name:
                 data["experiment_id"] = experiment_name
                 # Save the corrected data back to the file
-                self._set_json_data(data, filesystem_override=os.getenv("TFL_API_STORAGE_URI"))
+                self._set_json_data(data)
         
         return data
     
@@ -102,17 +102,17 @@ class Task(BaseLabResource):
         """List all tasks in the filesystem"""
         results = []
         tasks_dir = get_tasks_dir()
-        if not storage.isdir(tasks_dir, filesystem_override=os.getenv("TFL_API_STORAGE_URI")):
+        if not storage.isdir(tasks_dir):
             print(f"Tasks directory does not exist: {tasks_dir}")
             return results
         try:
             
-            entries = storage.ls(tasks_dir, detail=False, filesystem_override=os.getenv("TFL_API_STORAGE_URI"))
+            entries = storage.ls(tasks_dir, detail=False)
         except Exception as e:
             print(f"Exception listing tasks directory: {e}")
             entries = []
         for full in entries:
-            if not storage.isdir(full, filesystem_override=os.getenv("TFL_API_STORAGE_URI")):
+            if not storage.isdir(full):
                 continue
             # Attempt to read index.json (or latest snapshot)
             try:

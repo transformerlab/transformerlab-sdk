@@ -19,8 +19,7 @@ def _get_fs_and_root():
     Falls back to local ~/.transformerlab or TFL_HOME_DIR when not set.
     """
     # Check context variable first, then fall back to environment variable
-    # tfl_uri = _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
-    tfl_uri = os.getenv("TFL_STORAGE_URI")
+    tfl_uri = _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
     
     if not tfl_uri or tfl_uri.strip() == "":
         root = os.getenv(
