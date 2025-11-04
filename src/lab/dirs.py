@@ -50,9 +50,9 @@ def get_workspace_dir() -> str:
     org_id = _current_org_id.get()
 
     if org_id:
-        # # If the storage URI is set, use it for the org workspace
-        # if _current_tfl_storage_uri.get() is not None:
-        #     return _current_tfl_storage_uri.get()
+        # If the storage URI is set, use it for the org workspace
+        if _current_tfl_storage_uri.get() is not None:
+            return _current_tfl_storage_uri.get()
         path = storage.join(HOME_DIR, "orgs", org_id, "workspace")
         storage.makedirs(path, exist_ok=True)
         return path
