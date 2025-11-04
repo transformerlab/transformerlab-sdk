@@ -7,6 +7,7 @@ from .labresource import BaseLabResource
 from .job import Job
 import json
 from . import storage
+import fsspec
 
 
 class Experiment(BaseLabResource):
@@ -151,6 +152,8 @@ class Experiment(BaseLabResource):
 
         # Get cached job data from jobs.json
         cached_jobs = self._get_cached_jobs_data()
+        # print(f"Cached jobs: {cached_jobs}")
+        # print(f"Job list: {job_list}")
         
         # Iterate through the job list to return Job objects for valid jobs.
         # Also filter for status if that parameter was passed.
@@ -212,30 +215,57 @@ class Experiment(BaseLabResource):
     def rebuild_jobs_index(self, workspace_dir=None):
         results = {}
         cached_jobs = {}
+        
+        # Create filesystem override if workspace_dir is an S3 URI (for background threads)
+        fs_override = None
+        if workspace_dir and workspace_dir.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+            from .storage import _AWS_PROFILE
+            storage_options = {"profile": _AWS_PROFILE} if _AWS_PROFILE else None
+            fs_override, _token, _paths = fsspec.get_fs_token_paths(workspace_dir, storage_options=storage_options)
+        
         try:
             # Use provided jobs_dir or get current one
             if workspace_dir:
                 jobs_directory = storage.join(workspace_dir, "jobs")
             else:
                 jobs_directory = get_jobs_dir()
-            
+                        
             # Iterate through jobs directories and check for index.json
             # Sort entries numerically since job IDs are numeric strings (descending order)
             try:
-                job_entries_full = storage.ls(jobs_directory, detail=False)
-            except Exception:
+                job_entries_full = storage.ls(jobs_directory, detail=False, fs=fs_override)
+            except Exception as e:
+                print(f"Error getting job entries full: {e}")
                 job_entries_full = []
-            job_entries = [p.rstrip("/").split("/")[-1] for p in job_entries_full]
-            sorted_entries = sorted(job_entries, key=lambda x: int(x) if x.isdigit() else float('inf'), reverse=True)
+            # Filter out macOS metadata files (._*), the directory itself, and non-numeric entries
+            job_entries = []
+            for p in job_entries_full:
+                entry = p.rstrip("/").split("/")[-1]
+                # Skip empty entries, macOS metadata files, and the directory itself
+                if not entry or entry.startswith("._") or entry == "":
+                    continue
+                # Only process numeric job IDs
+                if not entry.isdigit():
+                    continue
+                job_entries.append(entry)
+            
+            sorted_entries = sorted(job_entries, key=lambda x: int(x), reverse=True)
             for entry in sorted_entries:
                 entry_path = storage.join(jobs_directory, entry)
-                if not storage.isdir(entry_path):
+                if not storage.isdir(entry_path, fs=fs_override):
                     continue
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = storage.join(entry_path, "index.json")
                 try:
-                    with storage.open(index_file, "r", encoding="utf-8") as lf:
-                        data = json.load(lf)
+                    with storage.open(index_file, "r", encoding="utf-8", fs=fs_override) as lf:
+                        content = lf.read().strip()
+                        if not content:
+                            # Skip empty files
+                            continue
+                        data = json.loads(content)
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing JSON for job {entry_path}: {e}")
+                    continue
                 except Exception as e:
                     print(f"Error loading index.json for job {entry_path}: {e}")
                     continue
@@ -260,7 +290,7 @@ class Experiment(BaseLabResource):
             }
             if results:
                 try:
-                    with storage.open(self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id), "w") as out:
+                    with storage.open(self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id), "w", fs=fs_override) as out:
                         json.dump(jobs_data, out, indent=4)
                 except Exception as e:
                     print(f"Error writing jobs index: {e}")

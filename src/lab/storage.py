@@ -77,9 +77,10 @@ def exists(path: str) -> bool:
     return filesystem().exists(path)
 
 
-def isdir(path: str) -> bool:
+def isdir(path: str, fs=None) -> bool:
     try:
-        return filesystem().isdir(path)
+        filesys = fs if fs is not None else filesystem()
+        return filesys.isdir(path)
     except Exception:
         return False
 
@@ -100,9 +101,11 @@ def makedirs(path: str, exist_ok: bool = True) -> None:
             filesystem().makedirs(path)
 
 
-def ls(path: str, detail: bool = False):
+def ls(path: str, detail: bool = False, fs=None):
+    # Use provided filesystem or get default
+    filesys = fs if fs is not None else filesystem()
     # Let fsspec parse the URI
-    paths = filesystem().ls(path, detail=detail)
+    paths = filesys.ls(path, detail=detail)
     # Dont include the current path in the list
     # Ensure paths are full URIs for remote filesystems
     if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
@@ -158,8 +161,9 @@ def rm_tree(path: str) -> None:
                 filesystem().rm(file_path)
 
 
-def open(path: str, mode: str = "r", **kwargs):
-    return filesystem().open(path, mode=mode, **kwargs)
+def open(path: str, mode: str = "r", fs=None, **kwargs):
+    filesys = fs if fs is not None else filesystem()
+    return filesys.open(path, mode=mode, **kwargs)
 
 
 def copy_file(src: str, dest: str) -> None:
