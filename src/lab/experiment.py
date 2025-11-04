@@ -1,4 +1,3 @@
-import os
 import threading
 import time
 from werkzeug.utils import secure_filename
