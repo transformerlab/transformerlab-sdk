@@ -1,6 +1,7 @@
 import os
 import json
 from werkzeug.utils import secure_filename
+import time
 
 from .dirs import get_models_dir
 from .labresource import BaseLabResource
@@ -167,7 +168,6 @@ class Model(BaseLabResource):
         Returns:
             Path to the created provenance file
         """
-        import time
         
         # Start with base provenance data matching the structure from train.py
         final_provenance = {
@@ -178,8 +178,8 @@ class Model(BaseLabResource):
             "dataset": None,
             "adaptor_name": None,
             "parameters": None,
-            "start_time": "",
-            "end_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
             "md5_checksums": md5_objects,
         }
         
