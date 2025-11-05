@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Transformer Lab", email = "developers@transformerlab.ai" }]
 license = { file = "LICENSE" }
-dependencies = ["werkzeug", "pytest", "fsspec"]
+dependencies = ["werkzeug", "pytest", "fsspec", "s3fs"]
 
 [project.urls]
 "Homepage" = "https://github.com/transformerlab/transformerlab-sdk"
