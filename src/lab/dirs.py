@@ -37,6 +37,9 @@ def get_workspace_dir() -> str:
     # Remote SkyPilot workspace override (highest precedence)
     # Only return container workspace path when value is exactly "true"
     if os.getenv("_TFL_REMOTE_SKYPILOT_WORKSPACE") == "true":
+        if os.getenv("TFL_STORAGE_URI") is not None:
+            return storage.root_uri()
+        
         return "/workspace"
 
     # Explicit override wins
