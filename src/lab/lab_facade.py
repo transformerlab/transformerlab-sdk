@@ -122,17 +122,20 @@ class Lab:
         
         Args:
             source_path: Path to the file or directory to save, OR a pandas DataFrame
-                         when type="evals"
+                         when type="evals" or type="dataset"
             name: Optional name for the artifact. If not provided, uses source basename
-                  or generates a default name for DataFrames.
-            type: Optional type of artifact. If "evals", saves to eval_results directory
-                  and updates job data accordingly. Otherwise saves to artifacts directory.
-            config: Optional configuration dict. When type="evals", can contain column
-                   mappings under "evals" key, e.g.:
+                  or generates a default name for DataFrames. When type="dataset", 
+                  this is used as the dataset_id.
+            type: Optional type of artifact. 
+                  - If "evals", saves to eval_results directory and updates job data accordingly.
+                  - If "dataset", saves as a dataset and tracks dataset_id in job data.
+                  - Otherwise saves to artifacts directory.
+            config: Optional configuration dict. 
+                   When type="evals", can contain column mappings under "evals" key, e.g.:
                    {"evals": {"input": "input_col", "output": "output_col", 
                              "expected_output": "expected_col", "score": "score_col"}}
-                   Defaults: input="input", output="output", expected_output="expected_output", 
-                            score="score"
+                   When type="dataset", can contain:
+                   {"dataset": {...metadata...}, "suffix": "...", "is_image": bool}
         
         Returns:
             The destination path on disk.
@@ -140,6 +143,63 @@ class Lab:
         self._ensure_initialized()
         
         job_id = self._job.id  # type: ignore[union-attr]
+        
+        # Handle DataFrame input when type="dataset"
+        if type == "dataset" and hasattr(source_path, "to_json"):
+            # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
+            df = source_path
+            try:
+                if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
+                    df = df.to_pandas()
+            except Exception:
+                pass
+            
+            # Use name as dataset_id, or generate one if not provided
+            if name is None or (isinstance(name, str) and name.strip() == ""):
+                import time
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                dataset_id = f"generated_dataset_{job_id}_{timestamp}"
+            else:
+                dataset_id = name.strip()
+            
+            # Get additional metadata from config if provided
+            additional_metadata = {}
+            if config and isinstance(config, dict) and "dataset" in config:
+                additional_metadata = config["dataset"]
+            
+            # Get other parameters from config
+            suffix = None
+            is_image = False
+            if config and isinstance(config, dict):
+                if "suffix" in config:
+                    suffix = config["suffix"]
+                if "is_image" in config:
+                    is_image = config["is_image"]
+            
+            # Use the existing save_dataset method
+            output_path = self.save_dataset(
+                df=df,
+                dataset_id=dataset_id,
+                additional_metadata=additional_metadata if additional_metadata else None,
+                suffix=suffix,
+                is_image=is_image
+            )
+            
+            # Track dataset_id in job_data
+            try:
+                job_data = self._job.get_job_data()
+                generated_datasets_list = []
+                if isinstance(job_data, dict):
+                    existing = job_data.get("generated_datasets", [])
+                    if isinstance(existing, list):
+                        generated_datasets_list = existing
+                generated_datasets_list.append(dataset_id)
+                self._job.update_job_data_field("generated_datasets", generated_datasets_list)
+            except Exception:
+                pass
+            
+            self.log(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id}'")
+            return output_path
         
         # Handle DataFrame input when type="evals"
         if type == "evals" and hasattr(source_path, "to_csv"):
