@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 import os
 import shutil
 
@@ -110,22 +110,129 @@ class Lab:
         if plot_data_path is not None and plot_data_path.strip() != "":
             self._job.update_job_data_field("plot_data_path", plot_data_path)  # type: ignore[union-attr]
 
-    def save_artifact(self, source_path: str, name: Optional[str] = None) -> str:
+    def save_artifact(
+        self, 
+        source_path: Union[str, Any], 
+        name: Optional[str] = None,
+        type: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None
+    ) -> str:
         """
         Save an artifact file or directory into this job's artifacts folder.
-        Returns the destination path on disk.
+        
+        Args:
+            source_path: Path to the file or directory to save, OR a pandas DataFrame
+                         when type="evals"
+            name: Optional name for the artifact. If not provided, uses source basename
+                  or generates a default name for DataFrames.
+            type: Optional type of artifact. If "evals", saves to eval_results directory
+                  and updates job data accordingly. Otherwise saves to artifacts directory.
+            config: Optional configuration dict. When type="evals", can contain column
+                   mappings under "evals" key, e.g.:
+                   {"evals": {"input": "input_col", "output": "output_col", 
+                             "expected_output": "expected_col", "score": "score_col"}}
+                   Defaults: input="input", output="output", expected_output="expected_output", 
+                            score="score"
+        
+        Returns:
+            The destination path on disk.
         """
         self._ensure_initialized()
+        
+        job_id = self._job.id  # type: ignore[union-attr]
+        
+        # Handle DataFrame input when type="evals"
+        if type == "evals" and hasattr(source_path, "to_csv"):
+            # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
+            df = source_path
+            try:
+                if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
+                    df = df.to_pandas()
+            except Exception:
+                pass
+            
+            # Get column mappings from config or use defaults
+            evals_config = {}
+            if config and isinstance(config, dict) and "evals" in config:
+                evals_config = config["evals"]
+            
+            default_mappings = {
+                "input": "input",
+                "output": "output",
+                "expected_output": "expected_output",
+                "score": "score"
+            }
+            
+            # Merge user config with defaults
+            column_mappings = {**default_mappings, **evals_config}
+            
+            # Validate that required columns exist (input, output, score are required)
+            required_columns = [
+                column_mappings["input"],
+                column_mappings["output"],
+                column_mappings["score"]
+            ]
+            if column_mappings.get("expected_output"):
+                required_columns.append(column_mappings["expected_output"])
+            
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                raise ValueError(f"Missing required columns in DataFrame: {missing_columns}")
+            
+            # Determine destination directory and filename
+            dest_dir = dirs.get_job_eval_results_dir(job_id)
+            
+            if name is None or (isinstance(name, str) and name.strip() == ""):
+                import time
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                filename = f"eval_results_{job_id}_{timestamp}.csv"
+            else:
+                filename = name if name.endswith(".csv") else f"{name}.csv"
+            
+            dest = os.path.join(dest_dir, filename)
+            
+            # Create parent directories
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            
+            # Save DataFrame to CSV
+            try:
+                if not hasattr(df, "to_csv"):
+                    raise TypeError("source_path must be a pandas DataFrame or a Hugging Face datasets.Dataset when type='evals'")
+                df.to_csv(dest, index=False)
+            except Exception as e:
+                raise RuntimeError(f"Failed to save evaluation results to {dest}: {str(e)}")
+            
+            # Track in job_data
+            try:
+                job_data = self._job.get_job_data()
+                eval_results_list = []
+                if isinstance(job_data, dict):
+                    existing = job_data.get("eval_results", [])
+                    if isinstance(existing, list):
+                        eval_results_list = existing
+                eval_results_list.append(dest)
+                self._job.update_job_data_field("eval_results", eval_results_list)
+            except Exception:
+                pass
+            
+            self.log(f"Evaluation results saved to '{dest}'")
+            return dest
+        
+        # Handle file path input (original behavior)
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
         src = os.path.abspath(source_path)
         if not os.path.exists(src):
             raise FileNotFoundError(f"Artifact source does not exist: {src}")
 
-        job_id = self._job.id  # type: ignore[union-attr]
-        artifacts_dir = dirs.get_job_artifacts_dir(job_id)
+        # Determine destination directory based on type
+        if type == "evals":
+            dest_dir = dirs.get_job_eval_results_dir(job_id)
+        else:
+            dest_dir = dirs.get_job_artifacts_dir(job_id)
+        
         base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
-        dest = os.path.join(artifacts_dir, base_name)
+        dest = os.path.join(dest_dir, base_name)
 
         # Create parent directories
         os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -138,16 +245,27 @@ class Lab:
         else:
             shutil.copy2(src, dest)
 
-        # Track in job_data
+        # Track in job_data based on type
         try:
             job_data = self._job.get_job_data()
-            artifact_list = []
-            if isinstance(job_data, dict):
-                existing = job_data.get("artifacts", [])
-                if isinstance(existing, list):
-                    artifact_list = existing
-            artifact_list.append(dest)
-            self._job.update_job_data_field("artifacts", artifact_list)
+            if type == "evals":
+                # For eval results, track in eval_results list
+                eval_results_list = []
+                if isinstance(job_data, dict):
+                    existing = job_data.get("eval_results", [])
+                    if isinstance(existing, list):
+                        eval_results_list = existing
+                eval_results_list.append(dest)
+                self._job.update_job_data_field("eval_results", eval_results_list)
+            else:
+                # For regular artifacts, track in artifacts list
+                artifact_list = []
+                if isinstance(job_data, dict):
+                    existing = job_data.get("artifacts", [])
+                    if isinstance(existing, list):
+                        artifact_list = existing
+                artifact_list.append(dest)
+                self._job.update_job_data_field("artifacts", artifact_list)
         except Exception:
             pass
 
