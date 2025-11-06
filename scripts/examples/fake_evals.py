@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from time import sleep
 import pandas as pd
@@ -111,7 +110,7 @@ def run_evaluation():
         multi_metric_cases = []
         for i in range(10):
             multi_metric_cases.append({
-                "input": f"Translate 'Hello' to Spanish",
+                "input": "Translate 'Hello' to Spanish",
                 "output": "Hola" if i % 2 == 0 else "Hallo",
                 "expected_output": "Hola",
                 "bleu_score": 1.0 if i % 2 == 0 else 0.3,
@@ -155,7 +154,7 @@ def run_evaluation():
             "accuracy": correct_cases / total_cases,
         }
 
-        lab.log(f"Evaluation Summary:")
+        lab.log("Evaluation Summary:")
         lab.log(f"  Total test cases: {summary['total_test_cases']}")
         lab.log(f"  Correct: {summary['correct_cases']}")
         lab.log(f"  Incorrect: {summary['incorrect_cases']}")
