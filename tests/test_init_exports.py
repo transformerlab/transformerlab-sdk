@@ -6,4 +6,8 @@ def test_exports():
     assert hasattr(lab, "Job")
     assert hasattr(lab, "Experiment")
     assert hasattr(lab, "Model")
+    assert hasattr(lab, "Dataset")
+    assert hasattr(lab, "Task")
+    assert hasattr(lab, "Lab")
+    assert hasattr(lab, "lab")
 
