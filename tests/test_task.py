@@ -1,5 +1,4 @@
 import os
-import json
 import importlib
 
 
@@ -297,8 +296,8 @@ def test_task_delete_all(tmp_path, monkeypatch):
     from lab.task import Task
 
     # Create some tasks
-    task1 = Task.create("task_to_delete_1")
-    task2 = Task.create("task_to_delete_2")
+    Task.create("task_to_delete_1")
+    Task.create("task_to_delete_2")
     
     # Verify they exist
     assert len(Task.list_all()) >= 2

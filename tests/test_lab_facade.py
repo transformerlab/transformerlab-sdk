@@ -1,8 +1,6 @@
 import os
 import json
 import importlib
-import shutil
-import time
 
 
 def _fresh(monkeypatch):
@@ -45,7 +43,6 @@ def test_lab_init_with_existing_job(tmp_path, monkeypatch):
     monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
 
     from lab.lab_facade import Lab
-    from lab.job import Job
     from lab.experiment import Experiment
 
     # Create an experiment and job first
@@ -437,7 +434,6 @@ def test_lab_save_dataset(tmp_path, monkeypatch):
             return len(self.data)
         
         def to_json(self, path, orient, lines):
-            import json
             with open(path, "w") as f:
                 if lines:
                     for item in self.data:
@@ -488,14 +484,13 @@ def test_lab_save_dataset_with_metadata(tmp_path, monkeypatch):
             return len(self.data)
         
         def to_json(self, path, orient, lines):
-            import json
             with open(path, "w") as f:
                 json.dump(self.data, f)
     
     df = MockDataFrame([{"a": 1}])
     additional_metadata = {"description": "Test dataset", "source": "synthetic"}
     
-    output_path = lab.save_dataset(df, "test_dataset_meta", additional_metadata=additional_metadata)
+    lab.save_dataset(df, "test_dataset_meta", additional_metadata=additional_metadata)
     
     from lab.dataset import Dataset
     ds = Dataset.get("test_dataset_meta")
@@ -526,7 +521,6 @@ def test_lab_save_dataset_image_format(tmp_path, monkeypatch):
             return len(self.data)
         
         def to_json(self, path, orient, lines):
-            import json
             with open(path, "w") as f:
                 for item in self.data:
                     f.write(json.dumps(item) + "\n")
@@ -564,7 +558,6 @@ def test_lab_save_dataset_duplicate_error(tmp_path, monkeypatch):
             return len(self.data)
         
         def to_json(self, path, orient, lines):
-            import json
             with open(path, "w") as f:
                 json.dump(self.data, f)
     
@@ -731,27 +724,6 @@ def test_lab_capture_wandb_url(tmp_path, monkeypatch):
     
     job_data = lab._job.get_job_data()
     assert job_data["wandb_run_url"] == wandb_url
-
-
-def test_lab_capture_wandb_url_from_env(tmp_path, monkeypatch):
-    _fresh(monkeypatch)
-    home = tmp_path / ".tfl_home"
-    ws = tmp_path / ".tfl_ws"
-    home.mkdir()
-    ws.mkdir()
-    monkeypatch.setenv("TFL_HOME_DIR", str(home))
-    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
-    monkeypatch.setenv("WANDB_URL", "https://wandb.ai/test/run-456")
-
-    from lab.lab_facade import Lab
-
-    lab = Lab()
-    lab.init(experiment_id="test_exp")
-    
-    # Check if wandb URL was captured during init
-    job_data = lab._job.get_job_data()
-    # Note: wandb detection may not always work in test environment
-    # This test verifies the method exists and can be called
 
 
 def test_lab_ensure_initialized(tmp_path, monkeypatch):
