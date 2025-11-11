@@ -122,7 +122,7 @@ class Lab:
         
         Args:
             source_path: Path to the file or directory to save, OR a pandas DataFrame
-                         when type="evals" or type="dataset"
+                         when type="eval" or type="dataset"
             name: Optional name for the artifact. If not provided, uses source basename
                   or generates a default name for DataFrames. When type="dataset", 
                   this is used as the dataset_id. When type="model", this is used as the model name
@@ -133,7 +133,7 @@ class Lab:
                   - If "model", saves to workspace models directory and creates Model Zoo metadata.
                   - Otherwise saves to artifacts directory.
             config: Optional configuration dict. 
-                   When type="evals", can contain column mappings under "evals" key, e.g.:
+                   When type="eval", can contain column mappings under "evals" key, e.g.:
                    {"evals": {"input": "input_col", "output": "output_col", 
                              "expected_output": "expected_col", "score": "score_col"}}
                    When type="dataset", can contain:
@@ -207,7 +207,7 @@ class Lab:
             return output_path
         
         # Handle DataFrame input when type="evals"
-        if type == "evals" and hasattr(source_path, "to_csv"):
+        if type == "eval" and hasattr(source_path, "to_csv"):
             # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
             df = source_path
             try:
