@@ -27,7 +27,7 @@ class Lab:
         self._job: Optional[Job] = None
 
     # ------------- lifecycle -------------
-    def init(self, experiment_id: str = "alpha") -> None:
+    def init(self, experiment_id: str = "alpha", config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize a job under the given experiment.
         If _TFL_JOB_ID environment variable is set, uses that existing job.
@@ -57,6 +57,10 @@ class Lab:
         
         # Check for wandb integration and capture URL if available
         self._detect_and_capture_wandb_url()
+
+        # Set config if provided
+        if config is not None:
+            self.set_config(config)
 
     def set_config(self, config: Dict[str, Any]) -> None:
         """
