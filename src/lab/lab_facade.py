@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 import os
 import shutil
 
@@ -177,22 +177,338 @@ class Lab:
         if plot_data_path is not None and plot_data_path.strip() != "":
             self._job.update_job_data_field("plot_data_path", plot_data_path)  # type: ignore[union-attr]
 
-    def save_artifact(self, source_path: str, name: Optional[str] = None) -> str:
+    def save_artifact(
+        self, 
+        source_path: Union[str, Any], 
+        name: Optional[str] = None,
+        type: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None
+    ) -> str:
         """
         Save an artifact file or directory into this job's artifacts folder.
-        Returns the destination path on disk.
+        
+        Args:
+            source_path: Path to the file or directory to save, OR a pandas DataFrame
+                         when type="eval" or type="dataset"
+            name: Optional name for the artifact. If not provided, uses source basename
+                  or generates a default name for DataFrames. When type="dataset", 
+                  this is used as the dataset_id. When type="model", this is used as the model name
+                  (will be prefixed with job_id for uniqueness).
+            type: Optional type of artifact. 
+                  - If "evals", saves to eval_results directory and updates job data accordingly.
+                  - If "dataset", saves as a dataset and tracks dataset_id in job data.
+                  - If "model", saves to workspace models directory and creates Model Zoo metadata.
+                  - Otherwise saves to artifacts directory.
+            config: Optional configuration dict. 
+                   When type="eval", can contain column mappings under "evals" key, e.g.:
+                   {"evals": {"input": "input_col", "output": "output_col", 
+                             "expected_output": "expected_col", "score": "score_col"}}
+                   When type="dataset", can contain:
+                   {"dataset": {...metadata...}, "suffix": "...", "is_image": bool}
+                   When type="model", can contain:
+                   {"model": {"architecture": "...", "pipeline_tag": "...", "parent_model": "..."}}
+                   or top-level keys: {"architecture": "...", "pipeline_tag": "...", "parent_model": "..."}
+        
+        Returns:
+            The destination path on disk.
         """
         self._ensure_initialized()
+        
+        job_id = self._job.id  # type: ignore[union-attr]
+        
+        # Handle DataFrame input when type="dataset"
+        if type == "dataset" and hasattr(source_path, "to_json"):
+            # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
+            df = source_path
+            try:
+                if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
+                    df = df.to_pandas()
+            except Exception:
+                pass
+            
+            # Use name as dataset_id, or generate one if not provided
+            if name is None or (isinstance(name, str) and name.strip() == ""):
+                import time
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                dataset_id = f"generated_dataset_{job_id}_{timestamp}"
+            else:
+                dataset_id = name.strip()
+            
+            # Get additional metadata from config if provided
+            additional_metadata = {}
+            if config and isinstance(config, dict) and "dataset" in config:
+                additional_metadata = config["dataset"]
+            
+            # Get other parameters from config
+            suffix = None
+            is_image = False
+            if config and isinstance(config, dict):
+                if "suffix" in config:
+                    suffix = config["suffix"]
+                if "is_image" in config:
+                    is_image = config["is_image"]
+            
+            # Use the existing save_dataset method
+            output_path = self.save_dataset(
+                df=df,
+                dataset_id=dataset_id,
+                additional_metadata=additional_metadata if additional_metadata else None,
+                suffix=suffix,
+                is_image=is_image
+            )
+            
+            # Track dataset_id in job_data
+            try:
+                job_data = self._job.get_job_data()
+                generated_datasets_list = []
+                if isinstance(job_data, dict):
+                    existing = job_data.get("generated_datasets", [])
+                    if isinstance(existing, list):
+                        generated_datasets_list = existing
+                generated_datasets_list.append(dataset_id)
+                self._job.update_job_data_field("generated_datasets", generated_datasets_list)
+            except Exception:
+                pass
+            
+            self.log(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id}'")
+            return output_path
+        
+        # Handle DataFrame input when type="evals"
+        if type == "eval" and hasattr(source_path, "to_csv"):
+            # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
+            df = source_path
+            try:
+                if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
+                    df = df.to_pandas()
+            except Exception:
+                pass
+            
+            # Get column mappings from config or use defaults
+            evals_config = {}
+            if config and isinstance(config, dict) and "evals" in config:
+                evals_config = config["evals"]
+            
+            default_mappings = {
+                "input": "input",
+                "output": "output",
+                "expected_output": "expected_output",
+                "score": "score"
+            }
+            
+            # Merge user config with defaults
+            column_mappings = {**default_mappings, **evals_config}
+            
+            # Validate that required columns exist (input, output, score are required)
+            required_columns = [
+                column_mappings["input"],
+                column_mappings["output"],
+                column_mappings["score"]
+            ]
+            if column_mappings.get("expected_output"):
+                required_columns.append(column_mappings["expected_output"])
+            
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                raise ValueError(f"Missing required columns in DataFrame: {missing_columns}")
+            
+            # Determine destination directory and filename
+            dest_dir = dirs.get_job_eval_results_dir(job_id)
+            
+            if name is None or (isinstance(name, str) and name.strip() == ""):
+                import time
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                filename = f"eval_results_{job_id}_{timestamp}.csv"
+            else:
+                filename = name if name.endswith(".csv") else f"{name}.csv"
+            
+            dest = os.path.join(dest_dir, filename)
+            
+            # Create parent directories
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            
+            # Save DataFrame to CSV
+            try:
+                if not hasattr(df, "to_csv"):
+                    raise TypeError("source_path must be a pandas DataFrame or a Hugging Face datasets.Dataset when type='evals'")
+                df.to_csv(dest, index=False)
+            except Exception as e:
+                raise RuntimeError(f"Failed to save evaluation results to {dest}: {str(e)}")
+            
+            # Track in job_data
+            try:
+                job_data = self._job.get_job_data()
+                eval_results_list = []
+                if isinstance(job_data, dict):
+                    existing = job_data.get("eval_results", [])
+                    if isinstance(existing, list):
+                        eval_results_list = existing
+                eval_results_list.append(dest)
+                self._job.update_job_data_field("eval_results", eval_results_list)
+            except Exception:
+                pass
+            
+            self.log(f"Evaluation results saved to '{dest}'")
+            return dest
+        
+        # Handle file path input when type="model"
+        if type == "model":
+            if not isinstance(source_path, str) or source_path.strip() == "":
+                raise ValueError("source_path must be a non-empty string when type='model'")
+            src = os.path.abspath(source_path)
+            if not os.path.exists(src):
+                raise FileNotFoundError(f"Model source does not exist: {src}")
+            
+            # Get model-specific parameters from config
+            model_config = {}
+            architecture = None
+            pipeline_tag = None
+            parent_model = None
+            
+            if config and isinstance(config, dict):
+                # Check for model config in nested dict
+                if "model" in config and isinstance(config["model"], dict):
+                    model_config = config["model"]
+                # Also allow top-level keys for convenience
+                if "architecture" in config:
+                    architecture = config["architecture"]
+                if "pipeline_tag" in config:
+                    pipeline_tag = config["pipeline_tag"]
+                if "parent_model" in config:
+                    parent_model = config["parent_model"]
+            
+            # Override with nested model config if present
+            if model_config:
+                architecture = model_config.get("architecture") or architecture
+                pipeline_tag = model_config.get("pipeline_tag") or pipeline_tag
+                parent_model = model_config.get("parent_model") or parent_model
+            
+            # Determine base name with job_id prefix for uniqueness
+            if isinstance(name, str) and name.strip() != "":
+                base_name = f"{job_id}_{name}"
+            else:
+                base_name = f"{job_id}_{os.path.basename(src)}"
+            
+            # Save to main workspace models directory for Model Zoo visibility
+            models_dir = dirs.get_models_dir()
+            dest = os.path.join(models_dir, base_name)
+            
+            # Create parent directories
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            
+            # Copy file or directory
+            if os.path.isdir(src):
+                if os.path.exists(dest):
+                    shutil.rmtree(dest)
+                shutil.copytree(src, dest)
+            else:
+                shutil.copy2(src, dest)
+            
+            # Initialize model service for metadata and provenance creation
+            model_service = ModelService(base_name)
+            
+            # Create Model metadata so it appears in Model Zoo
+            try:
+                # Use provided architecture or detect it
+                if architecture is None:
+                    architecture = model_service.detect_architecture(dest)
+                
+                # Handle pipeline tag logic
+                if pipeline_tag is None and parent_model is not None:
+                    # Try to fetch pipeline tag from parent model
+                    pipeline_tag = model_service.fetch_pipeline_tag(parent_model)
+                
+                # Determine model_filename for single-file models
+                model_filename = "" if os.path.isdir(dest) else os.path.basename(dest)
+                
+                # Prepare json_data with basic info
+                json_data = {
+                    "job_id": job_id,
+                    "description": f"Model generated by job {job_id}",
+                }
+                
+                # Add pipeline tag to json_data if provided
+                if pipeline_tag is not None:
+                    json_data["pipeline_tag"] = pipeline_tag
+                
+                # Use the Model class's generate_model_json method to create metadata
+                model_service.generate_model_json(
+                    architecture=architecture,
+                    model_filename=model_filename,
+                    json_data=json_data
+                )
+                self.log(f"Model saved to Model Zoo as '{base_name}'")
+            except Exception as e:
+                self.log(f"Warning: Model saved but metadata creation failed: {str(e)}")
+                # Try to detect architecture for provenance even if metadata creation failed
+                if architecture is None:
+                    try:
+                        architecture = model_service.detect_architecture(dest)
+                    except Exception:
+                        pass
+            
+            # Create provenance data
+            try:
+                # Create MD5 checksums for all model files
+                md5_objects = model_service.create_md5_checksums(dest)
+                
+                # Prepare provenance metadata from job data
+                job_data = self._job.get_job_data()
+                
+                provenance_metadata = {
+                    "job_id": job_id,
+                    "model_name": parent_model or job_data.get("model_name"),
+                    "model_architecture": architecture,
+                    "input_model": parent_model,
+                    "dataset": job_data.get("dataset"),
+                    "adaptor_name": job_data.get("adaptor_name", None),
+                    "parameters": job_data.get("_config", {}),
+                    "start_time": job_data.get("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
+                    "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                    "md5_checksums": md5_objects,
+                }
+                
+                # Create the _tlab_provenance.json file
+                provenance_file = model_service.create_provenance_file(
+                    model_path=dest,
+                    model_name=base_name,
+                    model_architecture=architecture,
+                    md5_objects=md5_objects,
+                    provenance_data=provenance_metadata
+                )
+                self.log(f"Provenance file created at: {provenance_file}")
+            except Exception as e:
+                self.log(f"Warning: Model saved but provenance creation failed: {str(e)}")
+            
+            # Track in job_data
+            try:
+                job_data = self._job.get_job_data()
+                model_list = []
+                if isinstance(job_data, dict):
+                    existing = job_data.get("models", [])
+                    if isinstance(existing, list):
+                        model_list = existing
+                model_list.append(dest)
+                self._job.update_job_data_field("models", model_list)
+            except Exception:
+                pass
+            
+            return dest
+        
+        # Handle file path input (original behavior)
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
         src = os.path.abspath(source_path)
         if not os.path.exists(src):
             raise FileNotFoundError(f"Artifact source does not exist: {src}")
 
-        job_id = self._job.id  # type: ignore[union-attr]
-        artifacts_dir = dirs.get_job_artifacts_dir(job_id)
+        # Determine destination directory based on type
+        if type == "evals":
+            dest_dir = dirs.get_job_eval_results_dir(job_id)
+        else:
+            dest_dir = dirs.get_job_artifacts_dir(job_id)
+        
         base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
-        dest = os.path.join(artifacts_dir, base_name)
+        dest = os.path.join(dest_dir, base_name)
 
         # Create parent directories
         os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -205,18 +521,29 @@ class Lab:
         else:
             shutil.copy2(src, dest)
 
-        # Track in job_data
+        # Track in job_data based on type
         try:
             job_data = self._job.get_job_data()
-            artifact_list = []
-            if isinstance(job_data, dict):
-                existing = job_data.get("artifacts", [])
-                if isinstance(existing, list):
-                    artifact_list = existing
-            artifact_list.append(dest)
-            self._job.update_job_data_field("artifacts", artifact_list)
-        except Exception as e:
-            print(f"Warning: Failed to track artifact in job_data: {str(e)}")
+            if type == "evals":
+                # For eval results, track in eval_results list
+                eval_results_list = []
+                if isinstance(job_data, dict):
+                    existing = job_data.get("eval_results", [])
+                    if isinstance(existing, list):
+                        eval_results_list = existing
+                eval_results_list.append(dest)
+                self._job.update_job_data_field("eval_results", eval_results_list)
+            else:
+                # For regular artifacts, track in artifacts list
+                artifact_list = []
+                if isinstance(job_data, dict):
+                    existing = job_data.get("artifacts", [])
+                    if isinstance(existing, list):
+                        artifact_list = existing
+                artifact_list.append(dest)
+                self._job.update_job_data_field("artifacts", artifact_list)
+        except Exception:
+            pass
 
         return dest
 
@@ -362,6 +689,9 @@ class Lab:
         Save a model file or directory to the workspace models directory.
         The model will automatically appear in the Model Zoo's Local Models list.
         
+        This method is a convenience wrapper around save_artifact with type="model".
+        For new code, consider using save_artifact directly with type="model".
+        
         Args:
             source_path: Path to the model file or directory to save
             name: Optional name for the model. If not provided, uses source basename.
@@ -375,120 +705,22 @@ class Lab:
         Returns:
             The destination path on disk.
         """
-        self._ensure_initialized()
-        if not isinstance(source_path, str) or source_path.strip() == "":
-            raise ValueError("source_path must be a non-empty string")
-        src = os.path.abspath(source_path)
-        if not os.path.exists(src):
-            raise FileNotFoundError(f"Model source does not exist: {src}")
-
-        job_id = self._job.id  # type: ignore[union-attr]
+        # Build config dict from parameters
+        config = {}
+        if architecture is not None:
+            config["architecture"] = architecture
+        if pipeline_tag is not None:
+            config["pipeline_tag"] = pipeline_tag
+        if parent_model is not None:
+            config["parent_model"] = parent_model
         
-        # Determine base name with job_id prefix for uniqueness
-        if isinstance(name, str) and name.strip() != "":
-            base_name = f"{job_id}_{name}"
-        else:
-            base_name = f"{job_id}_{os.path.basename(src)}"
-        
-        # Save to main workspace models directory for Model Zoo visibility
-        models_dir = dirs.get_models_dir()
-        dest = os.path.join(models_dir, base_name)
-        
-        # Create parent directories
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-
-        # Copy file or directory
-        if os.path.isdir(src):
-            if os.path.exists(dest):
-                shutil.rmtree(dest)
-            shutil.copytree(src, dest)
-        else:
-            shutil.copy2(src, dest)
-        
-        # Create Model metadata so it appears in Model Zoo
-        try:
-            model_service = ModelService(base_name)
-            
-            # Use provided architecture or detect it
-            if architecture is None:
-                architecture = model_service.detect_architecture(dest)
-            
-            # Handle pipeline tag logic
-            if pipeline_tag is None and parent_model is not None:
-                # Try to fetch pipeline tag from parent model
-                pipeline_tag = model_service.fetch_pipeline_tag(parent_model)
-            # Determine model_filename for single-file models
-            model_filename = "" if os.path.isdir(dest) else os.path.basename(dest)
-            
-            # Prepare json_data with basic info
-            json_data = {
-                "job_id": job_id,
-                "description": f"Model generated by job {job_id}",
-            }
-            
-            # Add pipeline tag to json_data if provided
-            if pipeline_tag is not None:
-                json_data["pipeline_tag"] = pipeline_tag
-            
-            # Use the Model class's generate_model_json method to create metadata
-            model_service.generate_model_json(
-                architecture=architecture,
-                model_filename=model_filename,
-                json_data=json_data
-            )
-            self.log(f"Model saved to Model Zoo as '{base_name}'")
-        except Exception as e:
-            self.log(f"Warning: Model saved but metadata creation failed: {str(e)}")
-
-        # Create provenance data
-        try:
-            # Create MD5 checksums for all model files
-            md5_objects = model_service.create_md5_checksums(dest)
-            
-            # Prepare provenance metadata from job data
-            job_data = self._job.get_job_data()
-            
-            provenance_metadata = {
-                "job_id": job_id,
-                "model_name": parent_model or job_data.get("model_name"),
-                "model_architecture": architecture,
-                "input_model": parent_model,
-                "dataset": job_data.get("dataset"),
-                "adaptor_name": job_data.get("adaptor_name", None),
-                "parameters": job_data.get("_config", {}),
-                "start_time": job_data.get("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
-                "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                "md5_checksums": md5_objects,
-
-
-            }
-            
-            # Create the _tlab_provenance.json file
-            provenance_file = model_service.create_provenance_file(
-                model_path=dest,
-                model_name=base_name,
-                model_architecture=architecture,
-                md5_objects=md5_objects,
-                provenance_data=provenance_metadata
-            )
-            self.log(f"Provenance file created at: {provenance_file}")
-        except Exception as e:
-            self.log(f"Warning: Model saved but provenance creation failed: {str(e)}")
-
-        # Track in job_data
-        try:
-            job_data = self._job.get_job_data()
-            model_list = []
-            if isinstance(job_data, dict):
-                existing = job_data.get("models", [])
-                if isinstance(existing, list):
-                    model_list = existing
-            model_list.append(dest)
-            self._job.update_job_data_field("models", model_list)
-        except Exception as e:
-            print(f"Warning: Failed to track model in job_data: {str(e)}")
-
-        return dest
+        # Use save_artifact with type="model"
+        return self.save_artifact(
+            source_path=source_path,
+            name=name,
+            type="model",
+            config=config if config else None
+        )
 
     def error(
         self,
