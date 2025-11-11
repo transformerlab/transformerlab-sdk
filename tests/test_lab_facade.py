@@ -433,13 +433,24 @@ def test_lab_save_dataset(tmp_path, monkeypatch):
         def __len__(self):
             return len(self.data)
         
-        def to_json(self, path, orient, lines):
-            with open(path, "w") as f:
+        def to_json(self, path_or_buf, orient, lines):
+            # Handle both file-like objects and path strings (like real pandas)
+            if hasattr(path_or_buf, 'write'):
+                # It's a file-like object
+                f = path_or_buf
                 if lines:
                     for item in self.data:
                         f.write(json.dumps(item) + "\n")
                 else:
                     json.dump(self.data, f)
+            else:
+                # It's a path string
+                with open(path_or_buf, "w") as f:
+                    if lines:
+                        for item in self.data:
+                            f.write(json.dumps(item) + "\n")
+                    else:
+                        json.dump(self.data, f)
     
     df = MockDataFrame([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
     
@@ -483,9 +494,15 @@ def test_lab_save_dataset_with_metadata(tmp_path, monkeypatch):
         def __len__(self):
             return len(self.data)
         
-        def to_json(self, path, orient, lines):
-            with open(path, "w") as f:
-                json.dump(self.data, f)
+        def to_json(self, path_or_buf, orient, lines):
+            # Handle both file-like objects and path strings (like real pandas)
+            if hasattr(path_or_buf, 'write'):
+                # It's a file-like object
+                json.dump(self.data, path_or_buf)
+            else:
+                # It's a path string
+                with open(path_or_buf, "w") as f:
+                    json.dump(self.data, f)
     
     df = MockDataFrame([{"a": 1}])
     additional_metadata = {"description": "Test dataset", "source": "synthetic"}
@@ -520,10 +537,18 @@ def test_lab_save_dataset_image_format(tmp_path, monkeypatch):
         def __len__(self):
             return len(self.data)
         
-        def to_json(self, path, orient, lines):
-            with open(path, "w") as f:
+        def to_json(self, path_or_buf, orient, lines):
+            # Handle both file-like objects and path strings (like real pandas)
+            if hasattr(path_or_buf, 'write'):
+                # It's a file-like object
+                f = path_or_buf
                 for item in self.data:
                     f.write(json.dumps(item) + "\n")
+            else:
+                # It's a path string
+                with open(path_or_buf, "w") as f:
+                    for item in self.data:
+                        f.write(json.dumps(item) + "\n")
     
     df = MockDataFrame([{"image": "img1.jpg"}])
     

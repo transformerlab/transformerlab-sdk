@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from typing import Optional, Dict, Any, Union
 import os
+import io
 
 from .experiment import Experiment
 from .job import Job
@@ -263,8 +264,13 @@ class Lab:
             try:
                 if not hasattr(df, "to_csv"):
                     raise TypeError("source_path must be a pandas DataFrame or a Hugging Face datasets.Dataset when type='evals'")
-                with storage.open(dest, "w") as f:
-                    df.to_csv(f, index=False)
+                # Write DataFrame to StringIO buffer first (pandas doesn't support fsspec handles directly)
+                buffer = io.StringIO()
+                df.to_csv(buffer, index=False)
+                buffer.seek(0)
+                # Then write buffer content to storage
+                with storage.open(dest, "w", encoding="utf-8") as f:
+                    f.write(buffer.getvalue())
             except Exception as e:
                 raise RuntimeError(f"Failed to save evaluation results to {dest}: {str(e)}")
             
@@ -531,9 +537,13 @@ class Lab:
         try:
             if not hasattr(df, "to_json"):
                 raise TypeError("df must be a pandas DataFrame or a Hugging Face datasets.Dataset")
-            # Use fsspec storage for writing
-            with storage.open(output_path, "w") as f:
-                df.to_json(f, orient="records", lines=lines)
+            # Write DataFrame to StringIO buffer first (pandas doesn't support fsspec handles directly)
+            buffer = io.StringIO()
+            df.to_json(buffer, orient="records", lines=lines)
+            buffer.seek(0)
+            # Then write buffer content to storage
+            with storage.open(output_path, "w", encoding="utf-8") as f:
+                f.write(buffer.getvalue())
         except Exception as e:
             raise RuntimeError(f"Failed to save dataset to {output_path}: {str(e)}")
 
