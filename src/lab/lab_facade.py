@@ -28,7 +28,7 @@ class Lab:
         self._job: Optional[Job] = None
 
     # ------------- lifecycle -------------
-    def init(self, experiment_id: str = "alpha") -> None:
+    def init(self, experiment_id: str = "alpha", config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize a job under the given experiment.
         If _TFL_JOB_ID environment variable is set, uses that existing job.
@@ -59,6 +59,10 @@ class Lab:
         # Check for wandb integration and capture URL if available
         self._detect_and_capture_wandb_url()
 
+        # Set config if provided
+        if config is not None:
+            self.set_config(config)
+
     def set_config(self, config: Dict[str, Any]) -> None:
         """
         Attach configuration to the current job.
@@ -87,6 +91,73 @@ class Lab:
         self._job.update_progress(progress)  # type: ignore[union-attr]
         # Check for wandb URL on every progress update
         self._check_and_capture_wandb_url()
+
+    # ------------- checkpoint resume support -------------
+    def get_checkpoint_to_resume(self) -> Optional[str]:
+        """
+        Get the checkpoint path to resume training from.
+        
+        This method checks for checkpoint resume information stored in the job data
+        when resuming training from a checkpoint.
+        
+        Returns:
+            Optional[str]: The full path to the checkpoint to resume from, or None if no
+                          checkpoint resume is requested.
+        """
+        if not self._job:
+            return None
+            
+        job_data = self._job.get_job_data()
+        if not job_data:
+            return None
+        
+        parent_job_id = job_data.get('parent_job_id')
+        checkpoint_name = job_data.get('resumed_from_checkpoint')
+        
+        if not parent_job_id or not checkpoint_name:
+            return None
+        
+        # Build the checkpoint path from parent job's checkpoints directory
+        checkpoint_path = self.get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
+        
+        # Verify the checkpoint exists
+        if checkpoint_path and os.path.exists(checkpoint_path):
+            return checkpoint_path
+        
+        return None
+    
+    def get_parent_job_checkpoint_path(self, parent_job_id: str, checkpoint_name: str) -> Optional[str]:
+        """
+        Get the full path to a checkpoint from a parent job.
+        
+        This is a helper method that constructs the path to a specific checkpoint
+        from a parent job's checkpoints directory.
+        
+        Args:
+            parent_job_id (str): The ID of the parent job that created the checkpoint
+            checkpoint_name (str): The name of the checkpoint file or directory
+        
+        Returns:
+            Optional[str]: The full path to the checkpoint, or None if it doesn't exist
+        """
+        try:
+            checkpoints_dir = dirs.get_job_checkpoints_dir(parent_job_id)
+            checkpoint_path = os.path.join(checkpoints_dir, checkpoint_name)
+            
+            # Security check: ensure the checkpoint path is within the checkpoints directory
+            checkpoint_path_normalized = os.path.normpath(checkpoint_path)
+            checkpoints_dir_normalized = os.path.normpath(checkpoints_dir)
+            
+            if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + os.sep):
+                return None
+            
+            if os.path.exists(checkpoint_path_normalized):
+                return checkpoint_path_normalized
+            
+            return None
+        except Exception as e:
+            print(f"Error getting parent job checkpoint path: {str(e)}")
+            return None
 
     # ------------- completion -------------
     def finish(
@@ -509,8 +580,8 @@ class Lab:
         try:
             if hasattr(df, "to_pandas") and callable(getattr(df, "to_pandas")):
                 df = df.to_pandas()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to convert dataset to pandas DataFrame: {str(e)}")
 
         # Prepare dataset directory
         dataset_id_safe = dataset_id.strip()
@@ -571,16 +642,17 @@ class Lab:
             )
         except Exception as e:
             # Do not fail the save if metadata write fails; log to job data
+            print(f"Warning: Failed to create dataset metadata: {str(e)}")
             try:
                 self._job.update_job_data_field("dataset_metadata_error", str(e))  # type: ignore[union-attr]
-            except Exception:
-                pass
+            except Exception as e2:
+                print(f"Warning: Failed to log dataset metadata error: {str(e2)}")
 
         # Track dataset on the job for provenance
         try:
             self._job.update_job_data_field("dataset_id", dataset_id_safe)  # type: ignore[union-attr]
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to track dataset in job_data: {str(e)}")
 
         self.log(f"Dataset saved to '{output_path}' and registered as generated dataset '{dataset_id_safe}'")
         return output_path
@@ -624,8 +696,8 @@ class Lab:
             ckpt_list.append(dest)
             self._job.update_job_data_field("checkpoints", ckpt_list)
             self._job.update_job_data_field("latest_checkpoint", dest)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to track checkpoint in job_data: {str(e)}")
 
         return dest
 

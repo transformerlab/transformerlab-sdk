@@ -5,6 +5,7 @@ when wandb is initialized within ML frameworks like TRL.
 """
 
 import os
+import argparse
 from datetime import datetime
 from time import sleep
 from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
@@ -122,6 +123,11 @@ def train_with_trl(quick_test=True):
         lab.init()
         lab.set_config(training_config)
 
+        # Check if we should resume from a checkpoint
+        checkpoint = lab.get_checkpoint_to_resume()
+        if checkpoint:
+            lab.log(f"📁 Resuming training from checkpoint: {checkpoint}")
+
         # Log start time
         start_time = datetime.now()
         mode = "Quick test" if quick_test else "Full training"
@@ -162,17 +168,17 @@ def train_with_trl(quick_test=True):
         lab.log("Loading model and tokenizer...")
         try:
             from transformers import AutoTokenizer, AutoModelForCausalLM
-            
+
             model_name = training_config["model_name"]
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = AutoModelForCausalLM.from_pretrained(model_name)
-            
+
             # Add pad token if it doesn't exist
             if tokenizer.pad_token is None:
                 tokenizer.pad_token = tokenizer.eos_token
             
             lab.log(f"Loaded model: {model_name}")
-            
+
         except ImportError:
             lab.log("⚠️  Transformers not available, skipping real training")
             lab.finish("Training skipped - transformers not available")
@@ -207,6 +213,8 @@ def train_with_trl(quick_test=True):
                 remove_unused_columns=False,
                 push_to_hub=False,
                 dataset_text_field="text",  # Move dataset_text_field to SFTConfig
+                resume_from_checkpoint=checkpoint if checkpoint else None,
+                bf16=False,  # Disable bf16 for compatibility with older GPUs
                 # Enable automatic checkpoint saving
                 save_total_limit=3,  # Keep only the last 3 checkpoints to save disk space
                 save_strategy="steps",  # Save checkpoints every save_steps
@@ -440,15 +448,18 @@ def train_with_trl(quick_test=True):
 
 
 if __name__ == "__main__":
-    import sys
     
-    # Check if user wants full training or quick test
-    quick_test = False # Default to quick test
-    if len(sys.argv) > 1 and sys.argv[1] == "--quick-training":
-        quick_test = True
+    parser = argparse.ArgumentParser(description="Train a model with automatic checkpoint resume support.")
+    parser.add_argument("--quick-training", action="store_true", help="Run in quick test mode")
+    
+    args = parser.parse_args()
+    
+    quick_test = args.quick_training
+    
+    if quick_test:
         print("🚀 Running quick test mode...")
     else:
-        print("🚀 Running full training mode (use --quick-training for quick test)...")
-    
+        print("🚀 Running full training mode...")
+
     result = train_with_trl(quick_test=quick_test)
     print("Training result:", result)
