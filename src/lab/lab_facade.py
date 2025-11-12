@@ -4,6 +4,7 @@ import time
 from typing import Optional, Dict, Any, Union
 import os
 import io
+import posixpath
 
 from .experiment import Experiment
 from .job import Job
@@ -121,7 +122,7 @@ class Lab:
         checkpoint_path = self.get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
         
         # Verify the checkpoint exists
-        if checkpoint_path and os.path.exists(checkpoint_path):
+        if checkpoint_path and storage.exists(checkpoint_path):
             return checkpoint_path
         
         return None
@@ -142,16 +143,19 @@ class Lab:
         """
         try:
             checkpoints_dir = dirs.get_job_checkpoints_dir(parent_job_id)
-            checkpoint_path = os.path.join(checkpoints_dir, checkpoint_name)
+            checkpoint_path = storage.join(checkpoints_dir, checkpoint_name)
             
             # Security check: ensure the checkpoint path is within the checkpoints directory
-            checkpoint_path_normalized = os.path.normpath(checkpoint_path)
-            checkpoints_dir_normalized = os.path.normpath(checkpoints_dir)
+            # Normalize paths using posixpath for cross-platform compatibility (works for both local and remote storage)
+            checkpoint_path_normalized = posixpath.normpath(checkpoint_path).rstrip("/")
+            checkpoints_dir_normalized = posixpath.normpath(checkpoints_dir).rstrip("/")
             
-            if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + os.sep):
+            # Check if checkpoint path is strictly within checkpoints directory (not the directory itself)
+            # For remote storage (s3://, etc.), ensure we're checking within the same bucket/path
+            if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + "/"):
                 return None
             
-            if os.path.exists(checkpoint_path_normalized):
+            if storage.exists(checkpoint_path_normalized):
                 return checkpoint_path_normalized
             
             return None
@@ -365,8 +369,11 @@ class Lab:
         if type == "model":
             if not isinstance(source_path, str) or source_path.strip() == "":
                 raise ValueError("source_path must be a non-empty string when type='model'")
-            src = os.path.abspath(source_path)
-            if not os.path.exists(src):
+            src = source_path
+            # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
+            if not src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")):
+                src = os.path.abspath(src)
+            if not storage.exists(src):
                 raise FileNotFoundError(f"Model source does not exist: {src}")
             
             # Get model-specific parameters from config
@@ -397,7 +404,7 @@ class Lab:
             if isinstance(name, str) and name.strip() != "":
                 base_name = f"{job_id}_{name}"
             else:
-                base_name = f"{job_id}_{os.path.basename(src)}"
+                base_name = f"{job_id}_{posixpath.basename(src)}"
             
             # Save to main workspace models directory for Model Zoo visibility
             models_dir = dirs.get_models_dir()
@@ -407,7 +414,7 @@ class Lab:
             storage.makedirs(models_dir, exist_ok=True)
             
             # Copy file or directory using storage module
-            if os.path.isdir(src):
+            if storage.isdir(src):
                 if storage.exists(dest):
                     storage.rm_tree(dest)
                 storage.copy_dir(src, dest)
@@ -429,7 +436,7 @@ class Lab:
                     pipeline_tag = model_service.fetch_pipeline_tag(parent_model)
                 
                 # Determine model_filename for single-file models
-                model_filename = "" if storage.isdir(dest) else os.path.basename(dest)
+                model_filename = "" if storage.isdir(dest) else posixpath.basename(dest)
                 
                 # Prepare json_data with basic info
                 json_data = {
@@ -508,8 +515,11 @@ class Lab:
         # Handle file path input (original behavior)
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
-        src = os.path.abspath(source_path)
-        if not os.path.exists(src):
+        src = source_path
+        # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
+        if not src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")):
+            src = os.path.abspath(src)
+        if not storage.exists(src):
             raise FileNotFoundError(f"Artifact source does not exist: {src}")
 
         # Determine destination directory based on type
@@ -518,14 +528,14 @@ class Lab:
         else:
             dest_dir = dirs.get_job_artifacts_dir(job_id)
         
-        base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
+        base_name = name if (isinstance(name, str) and name.strip() != "") else posixpath.basename(src)
         dest = storage.join(dest_dir, base_name)
 
         # Create parent directories
         storage.makedirs(dest_dir, exist_ok=True)
 
         # Copy file or directory
-        if os.path.isdir(src):
+        if storage.isdir(src):
             if storage.exists(dest):
                 storage.rm_tree(dest)
             storage.copy_dir(src, dest)
@@ -665,20 +675,23 @@ class Lab:
         self._ensure_initialized()
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
-        src = os.path.abspath(source_path)
-        if not os.path.exists(src):
+        src = source_path
+        # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
+        if not src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")):
+            src = os.path.abspath(src)
+        if not storage.exists(src):
             raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
 
         job_id = self._job.id  # type: ignore[union-attr]
         ckpts_dir = dirs.get_job_checkpoints_dir(job_id)
-        base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
+        base_name = name if (isinstance(name, str) and name.strip() != "") else posixpath.basename(src)
         dest = storage.join(ckpts_dir, base_name)
 
         # Create parent directories
         storage.makedirs(ckpts_dir, exist_ok=True)
 
         # Copy file or directory
-        if os.path.isdir(src):
+        if storage.isdir(src):
             if storage.exists(dest):
                 storage.rm_tree(dest)
             storage.copy_dir(src, dest)
