@@ -1,15 +1,15 @@
-import os
 from werkzeug.utils import secure_filename
 
 from .dirs import get_datasets_dir
 from .labresource import BaseLabResource
+from . import storage
 
 
 class Dataset(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         dataset_id_safe = secure_filename(str(self.id))
-        return os.path.join(get_datasets_dir(), dataset_id_safe)
+        return storage.join(get_datasets_dir(), dataset_id_safe)
 
     def _default_json(self):
         # Default metadata modeled after API dataset table fields
@@ -45,14 +45,18 @@ class Dataset(BaseLabResource):
     def list_all():
         results = []
         datasets_dir = get_datasets_dir()
-        if not os.path.isdir(datasets_dir):
+        if not storage.isdir(datasets_dir):
             return results
-        for entry in os.listdir(datasets_dir):
-            full = os.path.join(datasets_dir, entry)
-            if not os.path.isdir(full):
+        try:
+            entries = storage.ls(datasets_dir, detail=False)
+        except Exception:
+            entries = []
+        for full in entries:
+            if not storage.isdir(full):
                 continue
             # Attempt to read index.json (or latest snapshot)
             try:
+                entry = full.rstrip("/").split("/")[-1]
                 ds = Dataset(entry)
                 results.append(ds.get_metadata())
             except Exception:

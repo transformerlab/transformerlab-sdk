@@ -3,12 +3,14 @@ from __future__ import annotations
 import time
 from typing import Optional, Dict, Any, Union
 import os
-import shutil
+import io
+import posixpath
 
 from .experiment import Experiment
 from .job import Job
 from . import dirs
 from .model import Model as ModelService
+from . import storage
 from .dataset import Dataset
 
 class Lab:
@@ -120,7 +122,7 @@ class Lab:
         checkpoint_path = self.get_parent_job_checkpoint_path(parent_job_id, checkpoint_name)
         
         # Verify the checkpoint exists
-        if checkpoint_path and os.path.exists(checkpoint_path):
+        if checkpoint_path and storage.exists(checkpoint_path):
             return checkpoint_path
         
         return None
@@ -141,16 +143,19 @@ class Lab:
         """
         try:
             checkpoints_dir = dirs.get_job_checkpoints_dir(parent_job_id)
-            checkpoint_path = os.path.join(checkpoints_dir, checkpoint_name)
+            checkpoint_path = storage.join(checkpoints_dir, checkpoint_name)
             
             # Security check: ensure the checkpoint path is within the checkpoints directory
-            checkpoint_path_normalized = os.path.normpath(checkpoint_path)
-            checkpoints_dir_normalized = os.path.normpath(checkpoints_dir)
+            # Normalize paths using posixpath for cross-platform compatibility (works for both local and remote storage)
+            checkpoint_path_normalized = posixpath.normpath(checkpoint_path).rstrip("/")
+            checkpoints_dir_normalized = posixpath.normpath(checkpoints_dir).rstrip("/")
             
-            if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + os.sep):
+            # Check if checkpoint path is strictly within checkpoints directory (not the directory itself)
+            # For remote storage (s3://, etc.), ensure we're checking within the same bucket/path
+            if not checkpoint_path_normalized.startswith(checkpoints_dir_normalized + "/"):
                 return None
             
-            if os.path.exists(checkpoint_path_normalized):
+            if storage.exists(checkpoint_path_normalized):
                 return checkpoint_path_normalized
             
             return None
@@ -325,16 +330,22 @@ class Lab:
             else:
                 filename = name if name.endswith(".csv") else f"{name}.csv"
             
-            dest = os.path.join(dest_dir, filename)
+            dest = storage.join(dest_dir, filename)
             
             # Create parent directories
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            storage.makedirs(dest_dir, exist_ok=True)
             
-            # Save DataFrame to CSV
+            # Save DataFrame to CSV using storage module
             try:
                 if not hasattr(df, "to_csv"):
                     raise TypeError("source_path must be a pandas DataFrame or a Hugging Face datasets.Dataset when type='evals'")
-                df.to_csv(dest, index=False)
+                # Write DataFrame to StringIO buffer first (pandas doesn't support fsspec handles directly)
+                buffer = io.StringIO()
+                df.to_csv(buffer, index=False)
+                buffer.seek(0)
+                # Then write buffer content to storage
+                with storage.open(dest, "w", encoding="utf-8") as f:
+                    f.write(buffer.getvalue())
             except Exception as e:
                 raise RuntimeError(f"Failed to save evaluation results to {dest}: {str(e)}")
             
@@ -358,8 +369,11 @@ class Lab:
         if type == "model":
             if not isinstance(source_path, str) or source_path.strip() == "":
                 raise ValueError("source_path must be a non-empty string when type='model'")
-            src = os.path.abspath(source_path)
-            if not os.path.exists(src):
+            src = source_path
+            # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
+            if not src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")):
+                src = os.path.abspath(src)
+            if not storage.exists(src):
                 raise FileNotFoundError(f"Model source does not exist: {src}")
             
             # Get model-specific parameters from config
@@ -390,22 +404,22 @@ class Lab:
             if isinstance(name, str) and name.strip() != "":
                 base_name = f"{job_id}_{name}"
             else:
-                base_name = f"{job_id}_{os.path.basename(src)}"
+                base_name = f"{job_id}_{posixpath.basename(src)}"
             
             # Save to main workspace models directory for Model Zoo visibility
             models_dir = dirs.get_models_dir()
-            dest = os.path.join(models_dir, base_name)
+            dest = storage.join(models_dir, base_name)
             
             # Create parent directories
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            storage.makedirs(models_dir, exist_ok=True)
             
-            # Copy file or directory
-            if os.path.isdir(src):
-                if os.path.exists(dest):
-                    shutil.rmtree(dest)
-                shutil.copytree(src, dest)
+            # Copy file or directory using storage module
+            if storage.isdir(src):
+                if storage.exists(dest):
+                    storage.rm_tree(dest)
+                storage.copy_dir(src, dest)
             else:
-                shutil.copy2(src, dest)
+                storage.copy_file(src, dest)
             
             # Initialize model service for metadata and provenance creation
             model_service = ModelService(base_name)
@@ -422,7 +436,7 @@ class Lab:
                     pipeline_tag = model_service.fetch_pipeline_tag(parent_model)
                 
                 # Determine model_filename for single-file models
-                model_filename = "" if os.path.isdir(dest) else os.path.basename(dest)
+                model_filename = "" if storage.isdir(dest) else posixpath.basename(dest)
                 
                 # Prepare json_data with basic info
                 json_data = {
@@ -501,8 +515,11 @@ class Lab:
         # Handle file path input (original behavior)
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
-        src = os.path.abspath(source_path)
-        if not os.path.exists(src):
+        src = source_path
+        # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
+        if not src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")):
+            src = os.path.abspath(src)
+        if not storage.exists(src):
             raise FileNotFoundError(f"Artifact source does not exist: {src}")
 
         # Determine destination directory based on type
@@ -511,19 +528,19 @@ class Lab:
         else:
             dest_dir = dirs.get_job_artifacts_dir(job_id)
         
-        base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
-        dest = os.path.join(dest_dir, base_name)
+        base_name = name if (isinstance(name, str) and name.strip() != "") else posixpath.basename(src)
+        dest = storage.join(dest_dir, base_name)
 
         # Create parent directories
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        storage.makedirs(dest_dir, exist_ok=True)
 
         # Copy file or directory
-        if os.path.isdir(src):
-            if os.path.exists(dest):
-                shutil.rmtree(dest)
-            shutil.copytree(src, dest)
+        if storage.isdir(src):
+            if storage.exists(dest):
+                storage.rm_tree(dest)
+            storage.copy_dir(src, dest)
         else:
-            shutil.copy2(src, dest)
+            storage.copy_file(src, dest)
 
         # Track in job_data based on type
         try:
@@ -580,9 +597,9 @@ class Lab:
         dataset_id_safe = dataset_id.strip()
         dataset_dir = dirs.dataset_dir_by_id(dataset_id_safe)
         # If exists, then raise an error
-        if os.path.exists(dataset_dir):
+        if storage.exists(dataset_dir):
             raise FileExistsError(f"Dataset with ID {dataset_id_safe} already exists")
-        os.makedirs(dataset_dir, exist_ok=True)
+        storage.makedirs(dataset_dir, exist_ok=True)
 
         # Determine output filename
         if is_image:
@@ -595,13 +612,19 @@ class Lab:
                 stem = f"{stem}_{suffix.strip()}"
             output_filename = f"{stem}.json"
 
-        output_path = os.path.join(dataset_dir, output_filename)
+        output_path = storage.join(dataset_dir, output_filename)
 
         # Persist dataframe
         try:
             if not hasattr(df, "to_json"):
                 raise TypeError("df must be a pandas DataFrame or a Hugging Face datasets.Dataset")
-            df.to_json(output_path, orient="records", lines=lines)
+            # Write DataFrame to StringIO buffer first (pandas doesn't support fsspec handles directly)
+            buffer = io.StringIO()
+            df.to_json(buffer, orient="records", lines=lines)
+            buffer.seek(0)
+            # Then write buffer content to storage
+            with storage.open(output_path, "w", encoding="utf-8") as f:
+                f.write(buffer.getvalue())
         except Exception as e:
             raise RuntimeError(f"Failed to save dataset to {output_path}: {str(e)}")
 
@@ -652,25 +675,28 @@ class Lab:
         self._ensure_initialized()
         if not isinstance(source_path, str) or source_path.strip() == "":
             raise ValueError("source_path must be a non-empty string")
-        src = os.path.abspath(source_path)
-        if not os.path.exists(src):
+        src = source_path
+        # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
+        if not src.startswith(("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")):
+            src = os.path.abspath(src)
+        if not storage.exists(src):
             raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
 
         job_id = self._job.id  # type: ignore[union-attr]
         ckpts_dir = dirs.get_job_checkpoints_dir(job_id)
-        base_name = name if (isinstance(name, str) and name.strip() != "") else os.path.basename(src)
-        dest = os.path.join(ckpts_dir, base_name)
+        base_name = name if (isinstance(name, str) and name.strip() != "") else posixpath.basename(src)
+        dest = storage.join(ckpts_dir, base_name)
 
         # Create parent directories
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        storage.makedirs(ckpts_dir, exist_ok=True)
 
         # Copy file or directory
-        if os.path.isdir(src):
-            if os.path.exists(dest):
-                shutil.rmtree(dest)
-            shutil.copytree(src, dest)
+        if storage.isdir(src):
+            if storage.exists(dest):
+                storage.rm_tree(dest)
+            storage.copy_dir(src, dest)
         else:
-            shutil.copy2(src, dest)
+            storage.copy_file(src, dest)
 
         # Track in job_data and update latest pointer
         try:

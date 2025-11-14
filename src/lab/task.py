@@ -1,16 +1,16 @@
-import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
 from .dirs import get_tasks_dir
 from .labresource import BaseLabResource
+from . import storage
 
 
 class Task(BaseLabResource):
     def get_dir(self):
         """Abstract method on BaseLabResource"""
         task_id_safe = secure_filename(str(self.id))
-        return os.path.join(get_tasks_dir(), task_id_safe)
+        return storage.join(get_tasks_dir(), task_id_safe)
 
     def _default_json(self):
         # Default metadata modeled after API tasks table fields
@@ -50,10 +50,10 @@ class Task(BaseLabResource):
             data["experiment_id"] = experiment_id
         if remote_task is not None:
             data["remote_task"] = remote_task
+
         
         # Always update the updated_at timestamp
         data["updated_at"] = datetime.utcnow().isoformat()
-        
         self._set_json_data(data)
 
     def get_metadata(self):
@@ -91,17 +91,26 @@ class Task(BaseLabResource):
         """List all tasks in the filesystem"""
         results = []
         tasks_dir = get_tasks_dir()
-        if not os.path.isdir(tasks_dir):
+        if not storage.isdir(tasks_dir):
+            print(f"Tasks directory does not exist: {tasks_dir}")
             return results
-        for entry in os.listdir(tasks_dir):
-            full = os.path.join(tasks_dir, entry)
-            if not os.path.isdir(full):
+        try:
+            
+            entries = storage.ls(tasks_dir, detail=False)
+        except Exception as e:
+            print(f"Exception listing tasks directory: {e}")
+            entries = []
+        for full in entries:
+            if not storage.isdir(full):
                 continue
             # Attempt to read index.json (or latest snapshot)
             try:
+                entry = full.rstrip("/").split("/")[-1]
                 task = Task(entry)
+
                 results.append(task.get_metadata())
             except Exception:
+                print(f"Exception getting metadata for task: {entry}")
                 continue
         # Sort by created_at descending to match database behavior
         results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
@@ -139,10 +148,12 @@ class Task(BaseLabResource):
     def delete_all():
         """Delete all tasks"""
         tasks_dir = get_tasks_dir()
-        if not os.path.isdir(tasks_dir):
+        if not storage.isdir(tasks_dir):
             return
-        for entry in os.listdir(tasks_dir):
-            full = os.path.join(tasks_dir, entry)
-            if os.path.isdir(full):
-                import shutil
-                shutil.rmtree(full)
+        try:
+            entries = storage.ls(tasks_dir, detail=False)
+        except Exception:
+            entries = []
+        for full in entries:
+            if storage.isdir(full):
+                storage.rm_tree(full)
